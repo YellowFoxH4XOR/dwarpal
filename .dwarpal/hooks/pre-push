@@ -12,6 +12,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     revs="$(git rev-list "$remote_sha..$local_sha")"
   fi
   for sha in $revs; do
+    # Merge commits (e.g. GitHub PR merges) have no pre-commit marker of their
+    # own; their content arrived via the merged branch's verified commits. Skip
+    # any commit with a second parent.
+    if git rev-parse -q --verify "$sha^2" >/dev/null 2>&1; then
+      continue
+    fi
     tree="$(git rev-parse "$sha^{tree}")"
     if ! grep -qxF "$tree" "$marker" 2>/dev/null; then
       echo "dwarpal: commit $sha was not verified by the pre-commit gate" >&2

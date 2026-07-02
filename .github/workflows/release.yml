@@ -31,3 +31,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with repo scope on YellowFoxH4XOR/homebrew-tap so goreleaser can
+          # push the formula. Falls back to GITHUB_TOKEN (same-repo only).
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
