@@ -54,16 +54,16 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
+# Homebrew cask (goreleaser v2's replacement for the deprecated `brews`).
+homebrew_casks:
   - name: dwarpal
     repository:
       owner: YellowFoxH4XOR
       name: homebrew-tap
-    directory: Formula
+      # Cross-repo push needs a PAT with repo scope on homebrew-tap; the
+      # workflow passes secrets.HOMEBREW_TAP_GITHUB_TOKEN (falls back to the
+      # run's GITHUB_TOKEN, which only works for same-repo taps).
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
     homepage: "https://github.com/YellowFoxH4XOR/dwarpal"
     description: "A quality firewall between AI coding agents and your repository"
-    license: "Apache-2.0"
-    install: |
-      bin.install "dwarpal"
-    test: |
-      system "#{bin}/dwarpal", "version"

@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.0 (release hardening)
+
+- **Fixed**: pre-push verification no longer blocks merge commits (e.g. GitHub
+  PR merges) — a commit with a second parent is treated as verified via its
+  parents
+- **Fixed**: `dwarpal bypass` is now a functional one-shot override — it arms a
+  token the pre-commit hook consumes (gates skipped for exactly one commit,
+  push marker still written), on top of the existing audit log + git note
+- `dwarpal rules` now reports the duplicate and convention-drift gates
+- `dwarpal init` starter config showcases the full gate suite (provenance,
+  branch policy, ai_patterns, scope, drift, duplicate; coverage/intent/plugins
+  as commented examples)
+- goreleaser config migrated off deprecated `brews` to `homebrew_casks`;
+  validated with `goreleaser check` + full snapshot cross-compile (6 platforms);
+  release workflow wired for a `HOMEBREW_TAP_GITHUB_TOKEN` secret
+
 ## M1–M3 — Full gate suite (unreleased)
 
 Deterministic core, depth gates, optional gates, and distribution. AST work is

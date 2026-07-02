@@ -86,8 +86,43 @@ func runBypass(reason string) error {
 		_ = addBypassNote(root, rec)
 	}
 
-	fmt.Printf("• bypass recorded: %s\n", reason)
+	// Arm the one-shot token the pre-commit hook consumes: the next commit
+	// skips the gates (and still gets a push marker), then the token is gone.
+	// This is what makes bypass a functional override, not just an audit entry.
+	if err := writeBypassToken(root, reason); err != nil {
+		return &exitError{code: 2, msg: err.Error()}
+	}
+
+	fmt.Printf("• bypass recorded and armed for the next commit: %s\n", reason)
 	return nil
+}
+
+// bypassTokenName is the one-shot token file inside the git dir. The pre-commit
+// hook (internal/hooks/scripts.go) consumes and deletes it.
+const bypassTokenName = "dwarpal-bypass-once"
+
+// writeBypassToken arms the one-shot bypass inside the repo's git dir.
+func writeBypassToken(root, reason string) error {
+	out, err := gitDirCmd(root)
+	if err != nil {
+		return err
+	}
+	gitDir := out
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(root, gitDir)
+	}
+	return os.WriteFile(filepath.Join(gitDir, bypassTokenName), []byte(reason+"\n"), 0o644)
+}
+
+// gitDirCmd resolves the repo's git directory.
+func gitDirCmd(root string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse --git-dir: %w", err)
+	}
+	return trimNewline(string(out)), nil
 }
 
 // writeTree runs `git write-tree` to capture the staged tree hash.
