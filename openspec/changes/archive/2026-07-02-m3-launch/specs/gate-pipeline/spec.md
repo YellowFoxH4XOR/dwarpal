@@ -1,8 +1,5 @@
-# gate-pipeline Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change m0-walking-skeleton. Update Purpose after archive.
-## Requirements
 ### Requirement: Gate contract
 Every gate SHALL implement `ID() string` and `Run(ctx, *Diff, RepoIndex) ([]Finding, error)`. Findings SHALL carry `{gate, rule_id, severity, file, line, message, suggestion, docs_url}`. The engine SHALL run enabled gates in configured order and aggregate all findings.
 
@@ -31,15 +28,3 @@ If a deterministic gate returns an infrastructure error, the engine SHALL treat 
 #### Scenario: Plugin gate error still blocks
 - **WHEN** a configured plugin gate fails to execute (e.g., missing binary) during `dwarpal check` in enforce mode
 - **THEN** the process exits 1 and the report names the failed plugin gate
-
-### Requirement: Gate ordering and provenance-based filtering
-Gates SHALL run in a fixed registry order (cheapest first: diff-budget, branch-policy, ai-patterns, scope). Gates 3 and 4 SHALL be filtered per commit according to `provenance.apply_gates_to` (`agent-only` default runs them only on agent-authored commits; `all-commits` runs them on every commit). Gate 2's branch-policy check is never filtered by `apply_gates_to`.
-
-#### Scenario: Registry order determines default execution order
-- **WHEN** `dwarpal rules` lists enabled gates with no custom ordering configured
-- **THEN** the order shown is diff-budget, branch-policy, ai-patterns, scope
-
-#### Scenario: apply_gates_to filters ai-patterns and scope, not branch-policy
-- **WHEN** `provenance.apply_gates_to: agent-only` and a commit is detected as human-authored and targets a protected branch
-- **THEN** the branch-policy gate still evaluates that commit (and reports nothing if the commit is human-authored) while ai-patterns and scope are skipped entirely for it
-

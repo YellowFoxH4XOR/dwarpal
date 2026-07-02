@@ -1,8 +1,5 @@
-# cli-core Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change m0-walking-skeleton. Update Purpose after archive.
-## Requirements
 ### Requirement: Exit codes are a stable contract
 `dwarpal check` SHALL exit 0 when no blocking findings exist, 1 when at least one blocking finding exists, and 2 on configuration or internal error. No other exit codes SHALL be emitted. `dwarpal bypass` SHALL exit 0 on a recorded bypass, and exit 1 when rejected under `ci_strict` mode.
 
@@ -51,43 +48,7 @@ TBD - created by archiving change m0-walking-skeleton. Update Purpose after arch
 - **WHEN** `dwarpal version` runs
 - **THEN** stdout contains the semantic version string
 
-### Requirement: rules command lists active gates and rules
-`dwarpal rules` SHALL list every enabled gate and, for Gate 3, every rule in the active rule pack, showing for each: its ID, whether it is enabled, its source (`default` or overridden via config), its severity, and (for Gate 3 rules) its tier (`regex` or `ast`).
-
-#### Scenario: Default rule pack listed
-- **WHEN** `dwarpal rules` runs in a repo with no `.dwarpal.yml`
-- **THEN** the output lists all default-enabled gates and Gate 3 rules with source `default`
-
-#### Scenario: Disabled rule shown as disabled, not omitted
-- **WHEN** `gates.ai_patterns.disable_rules: ["no-hardcoded-secrets"]` is configured and `dwarpal rules` runs
-- **THEN** `no-hardcoded-secrets` appears in the output marked disabled, with source naming the config file, rather than being left out of the list
-
-### Requirement: task command declares a scope manifest
-`dwarpal task "<description>" --paths <glob>[,<glob>...]` SHALL write a `.dwarpal-task.yml` at the repository root declaring the given description and path globs, for Gate 4 to consume as the task manifest.
-
-#### Scenario: Task manifest created
-- **WHEN** `dwarpal task "AUTH-42: password reset flow" --paths "src/auth/**"` runs
-- **THEN** `.dwarpal-task.yml` is written containing the description and the `src/auth/**` glob, and a subsequent `dwarpal check` resolves it as the active scope manifest
-
-#### Scenario: Missing --paths rejected
-- **WHEN** `dwarpal task "AUTH-42: password reset flow"` runs without `--paths`
-- **THEN** the process exits 2 with a message stating `--paths` is required
-
-### Requirement: explain command is registered in the CLI surface
-`dwarpal explain <finding-id>` SHALL be a top-level command alongside
-`check`, `init`, `rules`, and `version`, visible in `dwarpal --help`, and
-SHALL delegate its lookup and output behavior to the `explain-command`
-capability.
-
-#### Scenario: Listed in help
-- **WHEN** `dwarpal --help` runs
-- **THEN** the output lists `explain` among the available commands with a
-  one-line description
-
-#### Scenario: Missing argument
-- **WHEN** `dwarpal explain` runs with no `<finding-id>` argument
-- **THEN** the process exits 2 with a usage message naming the required
-  argument
+## ADDED Requirements
 
 ### Requirement: bypass command records an auditable one-shot override
 `dwarpal bypass --reason "<text>"` SHALL require a non-empty `--reason`, write an auditable bypass record as both a git note on HEAD (best-effort; skipped when no commits exist) and an append-only local log (`.dwarpal/bypass.log`). Under `mode: ci_strict`, the bypass SHALL be rejected and the command SHALL exit 2 with no record written. (Consuming the record to let the next gated commit proceed is future work.)
@@ -118,4 +79,3 @@ capability.
 #### Scenario: Missing plugin binary surfaced
 - **WHEN** `.dwarpal.yml` configures a plugin whose `exec` binary is not on PATH
 - **THEN** `dwarpal doctor` reports that plugin as unreachable
-
