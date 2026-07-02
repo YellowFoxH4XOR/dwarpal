@@ -1,0 +1,147 @@
+name: "dwarpal"
+description: "Run the dwarpal quality firewall against a PR/commit range and upload SARIF findings"
+author: "YellowFoxH4XOR"
+
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  version:
+    description: >
+      Version of dwarpal to install, passed to `go install .../dwarpal@<version>`.
+      Use a semver tag (e.g. "v0.3.0") or "latest".
+    required: false
+    default: "latest"
+  mode:
+    description: >
+      Gate mode to enforce for this run: enforce, warn, or ci_strict.
+      Overrides the repo's .dwarpal.yml `mode` setting for the duration of the
+      Action run (CI should not be softer than local hooks).
+    required: false
+    default: "ci_strict"
+  range:
+    description: >
+      Commit range passed to `dwarpal check --range`. Defaults to the
+      pull request's base...head range, or the pushed commit range on push
+      events.
+    required: false
+    default: ""
+  working-directory:
+    description: "Directory to run dwarpal in."
+    required: false
+    default: "."
+  sarif-file:
+    description: "Path to write the SARIF report to."
+    required: false
+    default: "dwarpal.sarif"
+
+outputs:
+  sarif-file:
+    description: "Path to the generated SARIF report."
+    value: ${{ steps.check.outputs.sarif-file }}
+  conclusion:
+    description: "Outcome of the dwarpal check: success or failure."
+    value: ${{ steps.check.outputs.conclusion }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.26"
+        cache: true
+
+    - name: Install dwarpal
+      shell: bash
+      env:
+        DWARPAL_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        go install "github.com/YellowFoxH4XOR/dwarpal/cmd/dwarpal@${DWARPAL_VERSION}"
+        echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+    - name: Resolve commit range
+      id: range
+      shell: bash
+      env:
+        RANGE_INPUT: ${{ inputs.range }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
+        AFTER_SHA: ${{ github.event.after }}
+      run: |
+        set -euo pipefail
+        if [ -n "${RANGE_INPUT}" ]; then
+          range="${RANGE_INPUT}"
+        elif [ -n "${BASE_SHA}" ] && [ -n "${HEAD_SHA}" ]; then
+          range="${BASE_SHA}..${HEAD_SHA}"
+        elif [ -n "${BEFORE_SHA}" ] && [ -n "${AFTER_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+          range="${BEFORE_SHA}..${AFTER_SHA}"
+        else
+          range="HEAD~1..HEAD"
+        fi
+        echo "range=${range}" >> "$GITHUB_OUTPUT"
+
+    - name: Apply mode override
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DWARPAL_MODE: ${{ inputs.mode }}
+      run: |
+        set -euo pipefail
+        if [ -f .dwarpal.yml ]; then
+          python3 - "$DWARPAL_MODE" <<'PY'
+        import re, sys
+        mode = sys.argv[1]
+        path = ".dwarpal.yml"
+        with open(path) as f:
+            text = f.read()
+        if re.search(r"(?m)^mode:\s*\S+", text):
+            text = re.sub(r"(?m)^mode:\s*\S+", f"mode: {mode}", text, count=1)
+        else:
+            text = f"mode: {mode}\n" + text
+        with open(path, "w") as f:
+            f.write(text)
+        PY
+        else
+          printf 'mode: %s\n' "$DWARPAL_MODE" > .dwarpal.yml
+        fi
+
+    - name: Run dwarpal check
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DWARPAL_RANGE: ${{ steps.range.outputs.range }}
+        SARIF_FILE: ${{ inputs.sarif-file }}
+      run: |
+        set -euo pipefail
+        conclusion="success"
+        if ! dwarpal check --sarif --range "${DWARPAL_RANGE}" > "${SARIF_FILE}"; then
+          conclusion="failure"
+        fi
+        echo "sarif-file=${SARIF_FILE}" >> "$GITHUB_OUTPUT"
+        echo "conclusion=${conclusion}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.working-directory }}/${{ inputs.sarif-file }}
+
+    - name: Fail on findings
+      shell: bash
+      env:
+        CONCLUSION: ${{ steps.check.outputs.conclusion }}
+      run: |
+        set -euo pipefail
+        if [ "${CONCLUSION}" != "success" ]; then
+          echo "dwarpal check reported blocking findings" >&2
+          exit 1
+        fi

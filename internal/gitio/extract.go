@@ -55,6 +55,16 @@ func (e *Extractor) diff(selector []string) (*Diff, error) {
 			files[i].Kind = k
 		}
 	}
+
+	// Enrich with added-line content so content gates (secrets, suppressions,
+	// AST rules) can inspect the actual changed code, not just counts. A
+	// failure here is non-fatal: counts-only gates still work.
+	if added, err := e.addedContent(selector); err == nil {
+		for i := range files {
+			files[i].AddedLines = added[files[i].Path]
+		}
+	}
+
 	return &Diff{Files: files}, nil
 }
 

@@ -1,0 +1,13 @@
+# gate-scope: with a declared task manifest, files outside the scope are blocked
+exec git init
+exec dwarpal task AUTH-42 --paths src/auth/**
+exists .dwarpal-task.yml
+exec git add .
+! exec dwarpal check
+stdout 'outside the declared task scope'
+stdout 'pkg/other/util.go'
+
+-- src/auth/login.go --
+package auth
+-- pkg/other/util.go --
+package other

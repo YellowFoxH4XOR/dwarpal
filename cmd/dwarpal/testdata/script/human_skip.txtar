@@ -1,0 +1,20 @@
+# gate-provenance: with apply_gates_to agent-only (default), a HUMAN commit on a
+# normal branch is untouched — even an oversized diff passes (the R2 mitigation:
+# don't nag humans). Rename off the agent/* default so provenance sees no agent.
+exec git init
+exec git branch -m main
+exec git add .
+exec dwarpal check
+stdout 'no findings'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e

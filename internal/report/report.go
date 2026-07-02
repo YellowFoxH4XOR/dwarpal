@@ -70,11 +70,11 @@ func (in Input) retryHints() []string {
 
 // jsonOutput is the stable machine schema (PRD §5.4).
 type jsonOutput struct {
-	Result     string             `json:"result"`
-	Findings   []finding.Finding  `json:"findings"`
-	Summary    summary            `json:"summary"`
-	RetryHints []string           `json:"retry_hints"`
-	GateErrors []jsonGateError    `json:"gate_errors,omitempty"`
+	Result     string            `json:"result"`
+	Findings   []finding.Finding `json:"findings"`
+	Summary    summary           `json:"summary"`
+	RetryHints []string          `json:"retry_hints"`
+	GateErrors []jsonGateError   `json:"gate_errors,omitempty"`
 }
 
 type jsonGateError struct {

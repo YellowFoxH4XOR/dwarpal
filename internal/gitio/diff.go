@@ -19,14 +19,17 @@ const (
 
 // FileChange is one file's contribution to the diff. Binary files report
 // Added/Removed as 0 (git emits "-" for them) but still count as one changed
-// file, matching the diff-extraction spec.
+// file, matching the diff-extraction spec. AddedLines carries the content of
+// added lines (populated by content enrichment) for gates that inspect code,
+// not just counts.
 type FileChange struct {
-	Path    string
-	OldPath string // set only for renames
-	Kind    ChangeKind
-	Added   int
-	Removed int
-	Binary  bool
+	Path       string
+	OldPath    string // set only for renames
+	Kind       ChangeKind
+	Added      int
+	Removed    int
+	Binary     bool
+	AddedLines []Line
 }
 
 // Diff is the whole change under inspection. It is the input every gate sees.

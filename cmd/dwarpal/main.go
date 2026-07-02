@@ -38,7 +38,10 @@ func run() int {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
-	root.AddCommand(newCheckCmd(), newInitCmd(), newHookCmd(), newVersionCmd())
+	root.AddCommand(
+		newCheckCmd(), newInitCmd(), newHookCmd(), newRulesCmd(), newTaskCmd(),
+		newExplainCmd(), newDoctorCmd(), newBypassCmd(), newVersionCmd(),
+	)
 
 	if err := root.Execute(); err != nil {
 		var ee *exitError

@@ -1,0 +1,69 @@
+version: 2
+
+project_name: dwarpal
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: dwarpal
+    main: ./cmd/dwarpal
+    binary: dwarpal
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: dwarpal
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+# sboms:
+#   - artifacts: archive
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - name: dwarpal
+    repository:
+      owner: YellowFoxH4XOR
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/YellowFoxH4XOR/dwarpal"
+    description: "A quality firewall between AI coding agents and your repository"
+    license: "Apache-2.0"
+    install: |
+      bin.install "dwarpal"
+    test: |
+      system "#{bin}/dwarpal", "version"
