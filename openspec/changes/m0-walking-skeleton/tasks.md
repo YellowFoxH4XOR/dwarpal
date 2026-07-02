@@ -52,4 +52,4 @@
 
 - [x] 8.1 `dwarpal init`: git-repo check, write starter `.dwarpal.yml` (never overwrite), install hooks, print actions
 - [x] 8.2 End-to-end acceptance: fixture repo, stage 600-line diff, `dwarpal init && dwarpal check` blocks; time the run and assert < 1s
-- [ ] 8.3 Dogfood: run `dwarpal init` on the dwarpal repo itself; all subsequent commits to this repo pass through the gate
+- [x] 8.3 Dogfood: run `dwarpal init` on the dwarpal repo itself; all subsequent commits to this repo pass through the gate
