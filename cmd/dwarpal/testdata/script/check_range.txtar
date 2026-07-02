@@ -1,0 +1,29 @@
+# gate-diff-budget: --range analyzes a commit range instead of the index
+exec git init
+
+# first commit: one small file stays within the 3-line budget
+exec git add small.txt
+exec git commit -m 'first'
+
+# second commit: .dwarpal.yml (now committed) + big file that busts the 3-line budget
+exec git add .dwarpal.yml big.txt
+exec git commit -m 'second'
+
+# range check targeting only the last commit must block (exit 1)
+! exec dwarpal check --range HEAD~1..HEAD
+stdout 'exceeds'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- small.txt --
+one
+two
+-- big.txt --
+a
+b
+c
+d
+e

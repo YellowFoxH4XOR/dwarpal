@@ -1,0 +1,9 @@
+# gate-diff-budget: a diff within budget passes (exit 0)
+exec git init
+exec git add .
+exec dwarpal check
+stdout 'no findings'
+
+-- small.txt --
+one
+two

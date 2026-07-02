@@ -1,0 +1,25 @@
+#!/bin/sh
+# Managed by Dwarpal (https://github.com/YellowFoxH4XOR/dwarpal). Do not edit.
+zero="0000000000000000000000000000000000000000"
+marker="$(git rev-parse --git-dir)/dwarpal-ok"
+fail=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    revs="$(git rev-list "$local_sha" --not --remotes 2>/dev/null || git rev-list "$local_sha")"
+  else
+    revs="$(git rev-list "$remote_sha..$local_sha")"
+  fi
+  for sha in $revs; do
+    tree="$(git rev-parse "$sha^{tree}")"
+    if ! grep -qxF "$tree" "$marker" 2>/dev/null; then
+      echo "dwarpal: commit $sha was not verified by the pre-commit gate" >&2
+      echo "  (was it created with --no-verify?). Re-check with:" >&2
+      echo "    dwarpal check --range $sha~1..$sha" >&2
+      fail=1
+    fi
+  done
+done
+
+exit $fail

@@ -1,0 +1,24 @@
+# hook-management: a --no-verify commit (skipping pre-commit) is caught at push
+# because it left no success marker. This is the documented agent bypass.
+exec git init
+exec dwarpal init
+
+# a normal commit passes the gate and writes a marker
+exec git add .
+exec git commit -m first
+
+# bypass the pre-commit gate with --no-verify: no marker written
+cp sneak.txt tracked.txt
+exec git add tracked.txt
+exec git commit --no-verify -m bypassed
+
+# pushing the unverified commit is refused by the pre-push hook
+exec git init --bare ../remote.git
+exec git remote add origin ../remote.git
+! exec git push origin HEAD
+stderr 'was not verified'
+
+-- afile.txt --
+hello
+-- sneak.txt --
+sneaky

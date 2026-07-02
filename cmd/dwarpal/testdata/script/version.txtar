@@ -1,0 +1,3 @@
+# cli-core: version command prints the version string
+exec dwarpal version
+stdout 'dwarpal'

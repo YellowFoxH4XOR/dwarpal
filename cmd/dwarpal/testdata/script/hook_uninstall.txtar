@@ -1,0 +1,10 @@
+# hook-management: uninstall removes Dwarpal's hook configuration and leaves the
+# repo in the same state as before install (no core.hooksPath set).
+exec git init
+exec dwarpal hook install
+exec git config --local --get core.hooksPath
+stdout '\.dwarpal/hooks'
+exec dwarpal hook uninstall
+# core.hooksPath should now be absent; git exits non-zero when the key is missing,
+# so the ! prefix asserts the key no longer exists in local config.
+! exec git config --local --get core.hooksPath

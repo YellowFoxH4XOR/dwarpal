@@ -1,0 +1,17 @@
+#!/bin/sh
+# Managed by Dwarpal (https://github.com/YellowFoxH4XOR/dwarpal). Do not edit.
+if ! command -v dwarpal >/dev/null 2>&1; then
+  echo "dwarpal: binary not found on PATH." >&2
+  echo "  Fix your install, or remove the hooks with: dwarpal hook uninstall" >&2
+  echo "  (or manually: git config --unset core.hooksPath)" >&2
+  exit 1
+fi
+
+dwarpal check || exit $?
+
+# Record a success marker keyed to the staged tree so the pre-push hook can
+# tell a gated commit from one made with --no-verify.
+marker="$(git rev-parse --git-dir)/dwarpal-ok"
+tree="$(git write-tree)"
+grep -qxF "$tree" "$marker" 2>/dev/null || echo "$tree" >> "$marker"
+exit 0

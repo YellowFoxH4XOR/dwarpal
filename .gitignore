@@ -1,0 +1,16 @@
+# Binaries
+/dwarpal
+/dist/
+*.exe
+
+# Go
+*.test
+*.out
+coverage.*
+
+# Dwarpal runtime
+/.dwarpal/cache/
+/.git/dwarpal-ok
+
+# OS / editor
+.DS_Store

@@ -1,0 +1,20 @@
+# cli-core + gate-diff-budget: --json emits the machine contract with retry hints
+exec git init
+exec git add .
+! exec dwarpal check --json
+stdout '"result": "blocked"'
+stdout '"rule_id": "max-lines"'
+stdout '"retry_hints"'
+stdout 'exceeds the 3-line budget'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e

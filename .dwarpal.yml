@@ -1,0 +1,11 @@
+version: 1
+mode: enforce            # enforce | warn | ci_strict
+
+gates:
+  diff_budget:
+    max_lines: 500
+    max_files: 20
+    max_new_files: 10
+    overrides:
+      - paths: ["generated/**", "**/*.lock"]
+        max_lines: 10000

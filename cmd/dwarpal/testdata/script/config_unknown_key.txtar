@@ -1,0 +1,13 @@
+# config-loading: an unknown key fails closed (exit 2) naming the offender
+exec git init
+exec git add .
+! exec dwarpal check
+stderr 'max_line'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_line: 3
+-- f.txt --
+x

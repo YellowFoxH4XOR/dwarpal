@@ -1,0 +1,4 @@
+# gate: nothing staged exits 0 and reports 'nothing staged'
+exec git init
+exec dwarpal check
+stdout 'nothing staged'

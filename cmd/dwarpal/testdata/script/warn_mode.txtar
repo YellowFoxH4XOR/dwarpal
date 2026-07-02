@@ -1,0 +1,18 @@
+# config-loading: warn mode reports findings but never blocks (exit 0)
+exec git init
+exec git add .
+exec dwarpal check
+stdout 'exceeds the 3 limit'
+
+-- .dwarpal.yml --
+version: 1
+mode: warn
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e

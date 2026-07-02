@@ -1,0 +1,8 @@
+# config-loading: an invalid mode value fails closed (exit 2)
+exec git init
+! exec dwarpal check
+stderr 'invalid mode'
+
+-- .dwarpal.yml --
+version: 1
+mode: strict

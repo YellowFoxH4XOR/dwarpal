@@ -1,0 +1,52 @@
+schema: spec-driven
+
+context: |
+  Project: Dwarpal — an open-source, agent-agnostic, pre-commit quality
+  firewall for AI-agent-authored code. See dwarpal-prd.md for the full PRD.
+
+  One-liner: deterministic gate pipeline that intercepts agent-generated
+  changes at the git boundary (pre-commit/pre-push) and blocks violations
+  of quality, security, scope, and architecture rules.
+
+  Tech stack (decided, see PRD §6 + stack review):
+  - Go, single static binary, CGO_ENABLED=0 target
+  - CLI: spf13/cobra
+  - Config: knadh/koanf (.dwarpal.yml in repo)
+  - Git access: shell out to system git as PRIMARY (gh-CLI style);
+    go-git only if ever needed
+  - AST: tree-sitter grammars compiled to WASM, run on wazero
+    (pending Week-1 spike; cgo fallback acceptable)
+  - Rules as data: embedded via go:embed, tree-sitter queries + YAML
+  - Output: TTY, JSON, SARIF (one findings model, N printers —
+    golangci-lint style)
+  - Testing: rogpeppe/go-internal/testscript with txtar fixtures
+  - Release: goreleaser (Homebrew tap, Docker, GitHub Action)
+
+  Architecture exemplars: golangci-lint (engine/runner/caching),
+  gitleaks (distribution), semgrep (rules-as-data).
+
+  Key contracts:
+  - Gate interface: ID() string; Run(ctx, *Diff, *RepoIndex) ([]Finding, error)
+  - Finding: {gate, rule_id, severity, file, line, message, suggestion, docs_url}
+  - Exit codes: 0 pass, 1 blocked, 2 config/internal error
+  - p95 pipeline < 2s on a 500-line diff; deterministic gates fail closed,
+    LLM gate fails open
+  - Local hooks are DX; ci_strict mode is the real enforcement (agents can
+    bypass local hooks with --no-verify — build bypass resistance in:
+    hook-success marker + pre-push verification)
+
+  Conventions:
+  - Apache 2.0, no telemetry ever, no network calls in default operation
+  - Conventional commits
+  - Every rule ties to a documented agent failure mode (PRD §1), not
+    generic code quality
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+    - Reference the relevant PRD section(s)
+  tasks:
+    - Order tasks so a walking skeleton exists before depth (end-to-end
+      first, then gates)
+    - Flag any task that depends on an unresolved spike (tree-sitter
+      wazero-vs-cgo, RepoIndex latency)

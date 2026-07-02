@@ -1,0 +1,11 @@
+# cli-core: init writes config + hooks, and never overwrites existing config
+exec git init
+exec dwarpal init
+exists .dwarpal.yml
+exists .dwarpal/hooks/pre-commit
+exists .dwarpal/hooks/pre-push
+stdout 'wrote starter'
+
+# second run leaves the existing config untouched
+exec dwarpal init
+stdout 'already exists'

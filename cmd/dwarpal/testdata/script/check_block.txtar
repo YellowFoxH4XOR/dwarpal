@@ -1,0 +1,18 @@
+# gate-diff-budget: a diff over the line budget blocks (exit 1)
+exec git init
+exec git add .
+! exec dwarpal check
+stdout 'exceeds the 3 limit'
+stdout 'stopped this at the gate'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e

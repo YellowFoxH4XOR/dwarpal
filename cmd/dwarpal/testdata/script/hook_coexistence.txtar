@@ -1,0 +1,20 @@
+# hook-management: Dwarpal chains to a pre-existing hook instead of clobbering it.
+# A husky-style hook already lives in .git/hooks/pre-commit before install; after
+# install the Dwarpal hook in .dwarpal/hooks/pre-commit calls it first.
+exec git init
+# Place the pre-existing hook (content provided below) and make it executable.
+cp pre-commit.sh .git/hooks/pre-commit
+exec chmod +x .git/hooks/pre-commit
+exec dwarpal hook install
+# Stage a small change so the diff-budget gate passes.
+exec git add small.txt
+exec git commit -m x
+# The sentinel file proves the displaced hook was chained and ran.
+exists husky-ran.txt
+
+-- pre-commit.sh --
+#!/bin/sh
+echo ran > husky-ran.txt
+exit 0
+-- small.txt --
+hello
