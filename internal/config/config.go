@@ -31,15 +31,91 @@ const (
 
 // Config is the whole validated configuration.
 type Config struct {
-	Version int        `koanf:"version"`
-	Mode    Mode       `koanf:"mode"`
-	Gates   GatesBlock `koanf:"gates"`
+	Version    int             `koanf:"version"`
+	Mode       Mode            `koanf:"mode"`
+	Provenance ProvenanceBlock `koanf:"provenance"`
+	Gates      GatesBlock      `koanf:"gates"`
+}
+
+// ProvenanceBlock configures agent detection and which commits gates apply to.
+type ProvenanceBlock struct {
+	BranchPrefixes []string `koanf:"branch_prefixes"`
+	Trailers       []string `koanf:"trailers"`
+	ApplyGatesTo   string   `koanf:"apply_gates_to"` // agent-only | all-commits
 }
 
 // GatesBlock groups per-gate configuration.
 type GatesBlock struct {
-	DiffBudget DiffBudget `koanf:"diff_budget"`
+	DiffBudget      DiffBudget     `koanf:"diff_budget"`
+	BranchPolicy    BranchPolicy   `koanf:"branch_policy"`
+	AIPatterns      AIPatterns     `koanf:"ai_patterns"`
+	Scope           ScopeBlock     `koanf:"scope"`
+	DiffCoverage    DiffCoverage   `koanf:"diff_coverage"`
+	IntentCheck     IntentCheck    `koanf:"intent_check"`
+	Duplicate       DuplicateBlock `koanf:"duplicate"`
+	ConventionDrift DriftBlock     `koanf:"convention_drift"`
+	Plugins         []Plugin       `koanf:"plugins"`
 }
+
+// DuplicateBlock is the no-duplicate-function rule's config. Opt-in: it builds
+// the repo function index, so it is off by default to protect the p95 budget.
+type DuplicateBlock struct {
+	Enabled   bool    `koanf:"enabled"`
+	Threshold float64 `koanf:"threshold"`
+}
+
+// DriftBlock is Gate 6's config. Advisory (info) and on by default.
+type DriftBlock struct {
+	Enabled  bool   `koanf:"enabled"`
+	Severity string `koanf:"severity"`
+}
+
+// DiffCoverage is Gate 5's configuration. The gate is active only when Artifact
+// is set (Dwarpal consumes an existing coverage artifact, never runs tests).
+type DiffCoverage struct {
+	MinPercent float64 `koanf:"min_percent"`
+	Artifact   string  `koanf:"artifact"`
+}
+
+// IntentCheck is Gate 7's configuration. Off by default; the API key is read
+// from the environment, never stored in config.
+type IntentCheck struct {
+	Enabled        bool   `koanf:"enabled"`
+	Provider       string `koanf:"provider"`
+	Endpoint       string `koanf:"endpoint"`
+	Model          string `koanf:"model"`
+	TimeoutSeconds int    `koanf:"timeout_seconds"`
+}
+
+// BranchPolicy is Gate 2's protected-branch configuration.
+type BranchPolicy struct {
+	Protected []string `koanf:"protected"`
+}
+
+// AIPatterns is Gate 3's configuration.
+type AIPatterns struct {
+	Enabled      bool     `koanf:"enabled"`
+	DisableRules []string `koanf:"disable_rules"`
+}
+
+// ScopeBlock is Gate 4's configuration.
+type ScopeBlock struct {
+	RequireTaskManifest bool     `koanf:"require_task_manifest"`
+	AllowAlways         []string `koanf:"allow_always"`
+}
+
+// Plugin is one Gate 8 exec-plugin definition.
+type Plugin struct {
+	Name string   `koanf:"name"`
+	Exec string   `koanf:"exec"`
+	When []string `koanf:"when"`
+}
+
+// ApplyGatesTo values.
+const (
+	ApplyAgentOnly  = "agent-only"
+	ApplyAllCommits = "all-commits"
+)
 
 // DiffBudget is Gate 1's configuration.
 type DiffBudget struct {
@@ -62,11 +138,30 @@ func Defaults() Config {
 	return Config{
 		Version: 1,
 		Mode:    ModeEnforce,
+		Provenance: ProvenanceBlock{
+			BranchPrefixes: []string{"agent/", "ai/"},
+			Trailers:       []string{"Claude", "GitHub Copilot", "Cursor", "Devin", "Aider"},
+			ApplyGatesTo:   ApplyAgentOnly,
+		},
 		Gates: GatesBlock{
 			DiffBudget: DiffBudget{
 				MaxLines:    500,
 				MaxFiles:    20,
 				MaxNewFiles: 10,
+			},
+			BranchPolicy: BranchPolicy{
+				Protected: []string{"main", "release/*"},
+			},
+			AIPatterns: AIPatterns{
+				Enabled: true,
+			},
+			Duplicate: DuplicateBlock{
+				Enabled:   false, // opt-in: builds the repo index
+				Threshold: 0.85,
+			},
+			ConventionDrift: DriftBlock{
+				Enabled:  true,
+				Severity: "info",
 			},
 		},
 	}
@@ -79,12 +174,32 @@ const Filename = ".dwarpal.yml"
 // the overrides slice as a single leaf value, so its inner keys are validated
 // by struct decoding rather than listed here.
 var allowedKeys = map[string]bool{
-	"version":                          true,
-	"mode":                             true,
-	"gates.diff_budget.max_lines":      true,
-	"gates.diff_budget.max_files":      true,
-	"gates.diff_budget.max_new_files":  true,
-	"gates.diff_budget.overrides":      true,
+	"version":                            true,
+	"mode":                               true,
+	"provenance.branch_prefixes":         true,
+	"provenance.trailers":                true,
+	"provenance.apply_gates_to":          true,
+	"gates.diff_budget.max_lines":        true,
+	"gates.diff_budget.max_files":        true,
+	"gates.diff_budget.max_new_files":    true,
+	"gates.diff_budget.overrides":        true,
+	"gates.branch_policy.protected":      true,
+	"gates.ai_patterns.enabled":          true,
+	"gates.ai_patterns.disable_rules":    true,
+	"gates.scope.require_task_manifest":  true,
+	"gates.scope.allow_always":           true,
+	"gates.diff_coverage.min_percent":    true,
+	"gates.diff_coverage.artifact":       true,
+	"gates.intent_check.enabled":         true,
+	"gates.intent_check.provider":        true,
+	"gates.intent_check.endpoint":        true,
+	"gates.intent_check.model":           true,
+	"gates.intent_check.timeout_seconds": true,
+	"gates.duplicate.enabled":            true,
+	"gates.duplicate.threshold":          true,
+	"gates.convention_drift.enabled":     true,
+	"gates.convention_drift.severity":    true,
+	"gates.plugins":                      true,
 }
 
 // Load reads root/.dwarpal.yml, overlaying it on the defaults. A missing file
@@ -139,6 +254,11 @@ func (c Config) validate() error {
 	case ModeEnforce, ModeWarn, ModeCIStrict:
 	default:
 		return fmt.Errorf("invalid mode %q (want enforce|warn|ci_strict)", c.Mode)
+	}
+	switch c.Provenance.ApplyGatesTo {
+	case "", ApplyAgentOnly, ApplyAllCommits:
+	default:
+		return fmt.Errorf("invalid provenance.apply_gates_to %q (want agent-only|all-commits)", c.Provenance.ApplyGatesTo)
 	}
 	b := c.Gates.DiffBudget
 	if b.MaxLines < 0 || b.MaxFiles < 0 || b.MaxNewFiles < 0 {
