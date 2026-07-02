@@ -16,6 +16,11 @@ import (
 const starterConfig = `version: 1
 mode: enforce            # enforce | warn | ci_strict
 
+provenance:
+  branch_prefixes: ["agent/", "ai/"]
+  trailers: ["Claude", "GitHub Copilot", "Cursor", "Devin", "Aider"]
+  apply_gates_to: agent-only   # agent-only | all-commits
+
 gates:
   diff_budget:
     max_lines: 500
@@ -24,6 +29,31 @@ gates:
     overrides:
       - paths: ["generated/**", "**/*.lock"]
         max_lines: 10000
+  branch_policy:
+    protected: ["main", "release/*"]
+  ai_patterns:
+    enabled: true
+    disable_rules: []          # e.g. ["no-broad-catch"]
+  scope:
+    require_task_manifest: false
+    allow_always: ["**/*.lock", "**/__snapshots__/**"]
+  convention_drift:
+    enabled: true
+    severity: info
+  duplicate:
+    enabled: false             # opt-in: builds the repo function index (Go)
+    threshold: 0.85
+  # diff_coverage:
+  #   min_percent: 70
+  #   artifact: "coverage/lcov.info"
+  # intent_check:              # BYO key via DWARPAL_LLM_API_KEY; fail-open
+  #   enabled: true
+  #   provider: openai-compatible
+  #   endpoint: ""
+  #   model: ""
+  # plugins:
+  #   - name: gitleaks
+  #     exec: "gitleaks protect --staged"
 `
 
 func newInitCmd() *cobra.Command {

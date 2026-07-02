@@ -25,7 +25,16 @@ fi
   exit 1
 fi
 
-dwarpal check || exit $?
+# One-shot bypass: if 'dwarpal bypass --reason ...' armed a token, consume it —
+# skip the gates for THIS commit only, still writing the push marker below.
+# The bypass itself was already audited (.dwarpal/bypass.log + git note).
+token="$(git rev-parse --git-dir)/dwarpal-bypass-once"
+if [ -f "$token" ]; then
+  rm -f "$token"
+  echo "dwarpal: one-shot bypass consumed — gates skipped for this commit." >&2
+else
+  dwarpal check || exit $?
+fi
 
 # Record a success marker keyed to the staged tree so the pre-push hook can
 # tell a gated commit from one made with --no-verify.
@@ -62,6 +71,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     revs="$(git rev-list "$remote_sha..$local_sha")"
   fi
   for sha in $revs; do
+    # Merge commits (e.g. GitHub PR merges) have no pre-commit marker of their
+    # own; their content arrived via the merged branch's verified commits. Skip
+    # any commit with a second parent.
+    if git rev-parse -q --verify "$sha^2" >/dev/null 2>&1; then
+      continue
+    fi
     tree="$(git rev-parse "$sha^{tree}")"
     if ! grep -qxF "$tree" "$marker" 2>/dev/null; then
       echo "dwarpal: commit $sha was not verified by the pre-commit gate" >&2

@@ -1,0 +1,40 @@
+# cli-core: `dwarpal bypass` is a functional one-shot override — the next
+# commit skips the gates (and gets a push marker), the one after is gated again.
+exec git init
+exec dwarpal init
+
+# tighten the budget so our diff blocks
+cp tight.yml .dwarpal.yml
+exec git add .
+! exec git commit -m blocked
+stderr 'exceeds'
+
+# arm the bypass: the same commit now succeeds, and the token is consumed
+exec dwarpal bypass --reason 'hotfix approved by reviewer'
+exec git commit -m bypassed
+exists .dwarpal/bypass.log
+grep 'hotfix approved' .dwarpal/bypass.log
+
+# the bypassed commit carries a marker, so pushing it is allowed
+exec git init --bare ../remote-oneshot.git
+exec git remote add origin ../remote-oneshot.git
+exec git push origin HEAD
+
+# one-shot: the NEXT oversized commit is blocked again
+cp big.txt another.txt
+exec git add another.txt
+! exec git commit -m blocked-again
+stderr 'exceeds'
+
+-- tight.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e
+f

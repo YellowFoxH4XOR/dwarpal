@@ -13,8 +13,8 @@ exec git add tracked.txt
 exec git commit --no-verify -m bypassed
 
 # pushing the unverified commit is refused by the pre-push hook
-exec git init --bare ../remote.git
-exec git remote add origin ../remote.git
+exec git init --bare ../remote-bypass.git
+exec git remote add origin ../remote-bypass.git
 ! exec git push origin HEAD
 stderr 'was not verified'
 

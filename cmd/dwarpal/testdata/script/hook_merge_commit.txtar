@@ -1,0 +1,29 @@
+# hook-management: a merge commit (no marker of its own, e.g. a GitHub PR
+# merge) must NOT be blocked by the pre-push verification — its content arrived
+# via the merged branch's verified commits.
+exec git init
+exec dwarpal init
+
+# base commit through the gate
+exec git add .
+exec git commit -m base
+
+# feature branch with a gated commit
+exec git checkout -b feature
+cp extra.txt feat.txt
+exec git add feat.txt
+exec git commit -m feat
+
+# back to the default branch; merge with a real merge commit (no gate marker)
+exec git checkout agent/main
+exec git merge --no-ff --no-edit feature
+
+# push everything: the merge commit must be allowed
+exec git init --bare ../remote-merge.git
+exec git remote add origin ../remote-merge.git
+exec git push origin HEAD
+
+-- base.txt --
+hello
+-- extra.txt --
+feature work
