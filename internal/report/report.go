@@ -147,6 +147,11 @@ func TTY(w io.Writer, in Input) error {
 	}
 
 	s := in.summarize()
-	fmt.Fprintf(w, "\nDwarpal stopped this at the gate: %d finding(s), %d error(s).\n", s.Findings, s.Errors)
+	if in.Result == ResultBlocked {
+		fmt.Fprintf(w, "\nDwarpal stopped this at the gate: %d finding(s), %d error(s).\n", s.Findings, s.Errors)
+	} else {
+		// Not blocked (warn mode, or only advisory findings): report, don't claim a block.
+		fmt.Fprintf(w, "\nDwarpal: %d advisory finding(s) — not blocked.\n", s.Findings)
+	}
 	return nil
 }
