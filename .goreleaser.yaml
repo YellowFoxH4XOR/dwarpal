@@ -67,3 +67,6 @@ homebrew_casks:
     directory: Casks
     homepage: "https://github.com/YellowFoxH4XOR/dwarpal"
     description: "A quality firewall between AI coding agents and your repository"
+    commit_author:
+      name: YellowFoxH4XOR
+      email: yellowfoxh4xor@gmail.com
