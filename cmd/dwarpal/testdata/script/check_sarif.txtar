@@ -1,0 +1,19 @@
+# sarif-output: --sarif emits a valid SARIF 2.1.0 log for CI annotation
+exec git init
+exec git add .
+! exec dwarpal check --sarif
+stdout '"version": "2.1.0"'
+stdout '"ruleId": "diff_budget/max-lines"'
+stdout '"level": "error"'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 3
+-- big.txt --
+a
+b
+c
+d
+e

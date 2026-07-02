@@ -1,0 +1,8 @@
+# cli-core: `dwarpal rules` lists active gates and the AI-pattern rule pack
+exec git init
+exec dwarpal rules
+stdout 'diff_budget'
+stdout 'branch_policy'
+stdout 'ai_patterns'
+stdout 'no-hardcoded-secrets/aws-key'
+stdout 'apply_gates_to: agent-only'

@@ -9,7 +9,6 @@ import (
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/diffbudget"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/report"
 )
@@ -17,21 +16,23 @@ import (
 func newCheckCmd() *cobra.Command {
 	var (
 		jsonOut  bool
+		sarifOut bool
 		rangeArg string
 	)
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Run the gate pipeline against staged changes (or a commit range)",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runCheck(jsonOut, rangeArg)
+			return runCheck(jsonOut, sarifOut, rangeArg)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON (stdout only)")
+	cmd.Flags().BoolVar(&sarifOut, "sarif", false, "emit SARIF 2.1.0 for CI annotation (stdout only)")
 	cmd.Flags().StringVar(&rangeArg, "range", "", "check a commit range instead of the staging area, e.g. HEAD~1..HEAD")
 	return cmd
 }
 
-func runCheck(jsonOut bool, rangeArg string) error {
+func runCheck(jsonOut, sarifOut bool, rangeArg string) error {
 	if !gitAvailable() {
 		return &exitError{code: 2, msg: gitio.ErrGitNotFound.Error()}
 	}
@@ -56,10 +57,8 @@ func runCheck(jsonOut bool, rangeArg string) error {
 		return &exitError{code: 2, msg: err.Error()}
 	}
 
-	gates := []engine.Gate{
-		diffbudget.New(cfg.Gates.DiffBudget),
-	}
-	res := engine.Run(context.Background(), gates, diff, engine.NoIndex{})
+	gates, _, idx := buildGates(root, cfg)
+	res := engine.Run(context.Background(), gates, diff, idx)
 
 	blocking := res.Blocking() && cfg.Mode != config.ModeWarn
 	in := report.Input{
@@ -70,7 +69,11 @@ func runCheck(jsonOut bool, rangeArg string) error {
 
 	// In --json mode stdout carries only the JSON document; everything human
 	// stays on stderr. In TTY mode the report goes to stdout.
-	if jsonOut {
+	if sarifOut {
+		if err := report.SARIF(os.Stdout, in); err != nil {
+			return &exitError{code: 2, msg: err.Error()}
+		}
+	} else if jsonOut {
 		if err := report.JSON(os.Stdout, in); err != nil {
 			return &exitError{code: 2, msg: err.Error()}
 		}

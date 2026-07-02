@@ -46,6 +46,12 @@ func TestScripts(t *testing.T) {
 			e.Setenv("GIT_COMMITTER_EMAIL", "test@dwarpal.dev")
 			e.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 			e.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+			// Default new repos to an agent/* branch so provenance detects an
+			// agent (branch prefix) and the content gates apply — the realistic
+			// path Dwarpal is built for. Human-skip is covered separately.
+			e.Setenv("GIT_CONFIG_COUNT", "1")
+			e.Setenv("GIT_CONFIG_KEY_0", "init.defaultBranch")
+			e.Setenv("GIT_CONFIG_VALUE_0", "agent/main")
 			return nil
 		},
 	})

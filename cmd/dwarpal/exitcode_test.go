@@ -35,7 +35,10 @@ func repoEnv() []string {
 	return append(os.Environ(),
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t.co",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t.co",
-		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull)
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
+		// New repos default to an agent/* branch so provenance detects an agent
+		// and the content gates apply (default apply_gates_to: agent-only).
+		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=init.defaultBranch", "GIT_CONFIG_VALUE_0=agent/main")
 }
 
 // checkExit runs `dwarpal check` in dir and returns its exit code.
