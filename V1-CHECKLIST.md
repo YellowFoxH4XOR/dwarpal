@@ -117,7 +117,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 71. ✅ Dogfooding — Dwarpal gates its own repository (M1 exit criterion)
 72. ✅ OpenSpec baseline: 18 capabilities / 72 requirements, all changes archived truthfully
 73. ☐ Branch protection on `main` (parked by owner)
-74. ☐ Retag or retire old `v0.1.0` tag (points at pre-identity-rewrite history)
+74. ✅ v0.1.0 retagged onto clean-history commit (545407f, identical tree); release + 7 assets intact, tap unaffected. NOTE: the `Akshat katiyar` name still appears on PR **merge commits** — that is the GitHub account **display name**, stamped by GitHub on merges, not a git-history issue. Owner fix: GitHub → Settings → Profile → Name → `YellowFoxH4XOR` (fixes future merges; past merge commits are immutable without a destructive full-history rewrite that breaks all tags/releases)
 75. ☐ CI matrix for Windows hook behavior (PRD §11 Q3)
 
 ## O. Launch & community — G6 / M4 (§9, §10, §11)
