@@ -98,7 +98,7 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string, perCommit bool)
 		}
 	} else {
 		res = engine.RunWith(context.Background(), gates, diff, idx,
-			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
+			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock, SeverityOverrides: severityOverrides(cfg)})
 	}
 
 	blocking := res.Blocking() && cfg.Mode != config.ModeWarn
@@ -166,7 +166,7 @@ func runPerCommit(ex *gitio.Extractor, root string, gates []engine.Gate, idx eng
 			return engine.Result{}, err
 		}
 		res := engine.RunWith(context.Background(), gates, diff, idx,
-			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
+			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock, SeverityOverrides: severityOverrides(cfg)})
 		for i := range res.Findings {
 			res.Findings[i].Message += " (commit " + sha[:7] + ")"
 		}

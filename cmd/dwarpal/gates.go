@@ -77,6 +77,20 @@ func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Ga
 // buildGatesForDiff additionally knows the diff, letting expensive setup skip
 // when irrelevant: the repo index is only built when the diff actually touches
 // a language its consumer gates can score.
+// severityOverrides converts the config's rule_overrides (map of "gate/rule_id"
+// → severity string) into the typed map the engine applies. Invalid severities
+// are already rejected by config.validate, so this is a pure conversion.
+func severityOverrides(cfg config.Config) map[string]finding.Severity {
+	if len(cfg.RuleOverrides) == 0 {
+		return nil
+	}
+	out := make(map[string]finding.Severity, len(cfg.RuleOverrides))
+	for k, v := range cfg.RuleOverrides {
+		out[k] = finding.Severity(v)
+	}
+	return out
+}
+
 func buildGatesForDiff(root string, cfg config.Config, overrides []string, d *gitio.Diff) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
 	branch := currentBranch(root)
 	prov := provenance.New(cfg.Provenance.BranchPrefixes, cfg.Provenance.Trailers).

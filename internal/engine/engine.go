@@ -69,6 +69,11 @@ type Options struct {
 	// StopOnFirstBlock ends the run at the first gate that produced a blocking
 	// finding (or gate error), instead of the report-everything default.
 	StopOnFirstBlock bool
+	// SeverityOverrides reassigns a finding's severity by "gate/rule_id" before
+	// the blocking decision — the mechanism behind `.dwarpal.yml`'s
+	// rule_overrides and `dwarpal audit --apply`. Applied inside the engine so a
+	// demotion is honored even in StopOnFirstBlock mode.
+	SeverityOverrides map[string]finding.Severity
 }
 
 // fillDocsURLs gives every finding a working documentation link. Gates may
@@ -81,6 +86,26 @@ func fillDocsURLs(fs []finding.Finding) []finding.Finding {
 		}
 	}
 	return fs
+}
+
+// applySeverityOverrides reassigns finding severities per the "gate/rule_id"
+// override map. A missing or empty map is a no-op, so the common path is free.
+func applySeverityOverrides(fs []finding.Finding, ov map[string]finding.Severity) []finding.Finding {
+	if len(ov) == 0 {
+		return fs
+	}
+	for i := range fs {
+		if s, ok := ov[fs[i].Gate+"/"+fs[i].RuleID]; ok {
+			fs[i].Severity = s
+		}
+	}
+	return fs
+}
+
+// postProcess is the fold applied to every gate's findings before the blocking
+// decision: canonical docs links, then severity overrides.
+func postProcess(fs []finding.Finding, opts Options) []finding.Finding {
+	return applySeverityOverrides(fillDocsURLs(fs), opts.SeverityOverrides)
 }
 
 // Run executes the gates against the diff and aggregates everything.
@@ -103,7 +128,7 @@ func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, op
 			if err != nil {
 				res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
 			} else {
-				res.Findings = append(res.Findings, fillDocsURLs(fs)...)
+				res.Findings = append(res.Findings, postProcess(fs, opts)...)
 			}
 			if res.Blocking() {
 				break
@@ -134,7 +159,7 @@ func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, op
 			res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: results[i].err})
 			continue
 		}
-		res.Findings = append(res.Findings, fillDocsURLs(results[i].findings)...)
+		res.Findings = append(res.Findings, postProcess(results[i].findings, opts)...)
 	}
 	return res
 }
