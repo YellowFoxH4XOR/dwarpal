@@ -23,8 +23,10 @@ blocked and fix its own mistake.
 brew install --cask YellowFoxH4XOR/tap/dwarpal
 ```
 
-> macOS note: the binary is not yet notarized. If Gatekeeper blocks it, run
-> `xattr -d com.apple.quarantine "$(readlink -f /opt/homebrew/bin/dwarpal)"`.
+> macOS note: the binary isn't notarized yet, but the cask **strips the
+> Gatekeeper quarantine automatically on install**, so `brew` just works — no
+> manual step. (Proper Apple signing is wired and dormant; see
+> [docs/notarization.md](docs/notarization.md).)
 > Upgrading: run `brew update` first — Homebrew doesn't auto-pull taps, so
 > `brew upgrade` alone may report "already installed" on a stale tap clone.
 

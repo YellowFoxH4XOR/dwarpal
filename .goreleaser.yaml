@@ -85,6 +85,17 @@ homebrew_casks:
     directory: Casks
     homepage: "https://github.com/YellowFoxH4XOR/dwarpal"
     description: "A quality firewall between AI coding agents and your repository"
+    # Until notarization is activated (docs/notarization.md, dormant per ADR
+    # 0001), the binary is unsigned, so Homebrew's cask quarantine would make
+    # Gatekeeper block first run. Strip the quarantine bit on install — the
+    # GoReleaser-documented free alternative to notarization. Removing this is
+    # safe once signing is live.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dwarpal"]
+          end
     commit_author:
       name: YellowFoxH4XOR
       email: yellowfoxh4xor@gmail.com
