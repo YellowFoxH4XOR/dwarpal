@@ -2,6 +2,9 @@
 
 **Your agents write the code. Dwarpal decides what gets in.**
 
+The name is Sanskrit/Hindi (द्वारपाल) for the guardian at a temple door — the
+figure who decides who passes.
+
 Dwarpal is an open-source, agent-agnostic pre-commit quality firewall for
 AI-authored code. It sits between your coding agent and your repository,
 running deterministic gates on every staged diff before a commit lands. It
