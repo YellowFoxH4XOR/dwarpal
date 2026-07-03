@@ -6,6 +6,10 @@
   every check flag), README gate table completed (duplicate + architecture_
   rules), ADR index. Verified: all-commits default consistent, every config
   key documented, no dead links.
+- CI now tests on **windows-latest** (PRD §11 Q3). It found and fixed a real
+  Windows bug: hook-chaining gated on the unix executable bit (absent on
+  NTFS), so a pre-existing husky-style hook was never chained — now detected
+  by existence on Windows, where git runs hooks by shebang regardless.
 
 ## Unreleased
 
