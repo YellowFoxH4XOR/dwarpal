@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **`dwarpal agent setup <claude-code|codex|opencode|pi>`** — wires the gate
+  into the agent's own loop: idempotent managed instruction blocks in
+  CLAUDE.md/AGENTS.md (pre-flight workflow, provenance identity, no-bypass
+  contract), and for Claude Code a PreToolUse hook merged into
+  .claude/settings.json that feeds block JSON straight back to the model
+  before the commit attempt
+
 ## v0.3.0
 
 - **BREAKING (behavior)**: `provenance.apply_gates_to` now defaults to
