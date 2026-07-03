@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -12,6 +13,15 @@ import (
 // binDir holds the freshly built dwarpal binary made available on PATH to every
 // testscript run. A real binary (not an in-process command) is required because
 // the git hooks shell out to `dwarpal` from a /bin/sh subprocess.
+// binExt is ".exe" on Windows so the built test binary is named the way the
+// OS (and testscript's exec lookup) expects.
+var binExt = func() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}()
+
 var binDir string
 
 func TestMain(m *testing.M) {
@@ -19,7 +29,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	out := filepath.Join(dir, "dwarpal")
+	out := filepath.Join(dir, "dwarpal"+binExt)
 	cmd := exec.Command("go", "build", "-o", out, ".")
 	if b, err := cmd.CombinedOutput(); err != nil {
 		panic("building dwarpal for tests: " + err.Error() + "\n" + string(b))
