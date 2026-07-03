@@ -4,7 +4,7 @@
 
 ## What it catches
 
-Added Go calls matching a rule's `matches` regex outside its `forbidden_outside` globs — your own layering assertions, e.g. "no direct DB calls outside internal/repo".
+Added calls matching a rule's `matches` regex outside its `forbidden_outside` globs — your own layering assertions, e.g. "no direct DB calls outside internal/repo". Enforced in **Go, Python, TypeScript, and JavaScript** (each rule declares its `language`). A rule targeting an unsupported language is a loud config error, never a silent no-op.
 
 ## Why this rule exists
 
