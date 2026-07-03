@@ -157,10 +157,20 @@ func TestRun_WritesNothingInRepo(t *testing.T) {
 
 func listFiles(t *testing.T, dir string) string {
 	t.Helper()
+	gitDir := filepath.Join(dir, ".git")
 	var names string
 	err := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		// Skip .git: audit runs git commands that trigger transient
+		// auto-maintenance lock files, which are git's churn, not audit
+		// mutating config/source. Tolerate anything that vanishes mid-walk.
 		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return err
+		}
+		if info.IsDir() && p == gitDir {
+			return filepath.SkipDir
 		}
 		names += p + "\n"
 		return nil
