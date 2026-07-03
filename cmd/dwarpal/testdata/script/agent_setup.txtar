@@ -1,0 +1,30 @@
+# agent-setup: wires Dwarpal into coding agents' instruction files; Claude Code
+# additionally gets the pre-flight PreToolUse hook. Idempotent re-runs.
+exec git init
+
+# claude-code: CLAUDE.md block + settings hook
+exec dwarpal agent setup claude-code
+exists CLAUDE.md
+grep 'dwarpal:begin' CLAUDE.md
+grep 'explain-for-agent' CLAUDE.md
+exists .claude/settings.json
+grep 'PreToolUse' .claude/settings.json
+grep 'git commit' .claude/settings.json
+
+# re-run: no duplicates
+exec dwarpal agent setup claude-code
+exec dwarpal agent setup claude-code
+grep -count=1 'dwarpal:begin' CLAUDE.md
+
+# the AGENTS.md trio share one file, one block
+exec dwarpal agent setup codex
+grep 'AGENTGATE_AGENT="Codex"' AGENTS.md
+exec dwarpal agent setup opencode
+grep -count=1 'dwarpal:begin' AGENTS.md
+grep 'AGENTGATE_AGENT="OpenCode"' AGENTS.md
+exec dwarpal agent setup pi
+grep 'AGENTGATE_AGENT="Pi"' AGENTS.md
+
+# unknown tool rejected with the supported list
+! exec dwarpal agent setup vim
+stderr 'supported: claude-code, codex, opencode, pi'
