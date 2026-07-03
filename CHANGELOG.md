@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **macOS: `brew install --cask` no longer trips Gatekeeper.** The cask now
+  strips `com.apple.quarantine` on install (GoReleaser's documented free
+  alternative to notarization), so unsigned binaries run without the manual
+  `xattr` step. Full Apple signing stays wired and dormant (ADR 0001).
+
 ## v0.5.0 — 2026-07-03
 
 - **Agent-authored config.** New `dwarpal analyze [--json]` measures the repo
