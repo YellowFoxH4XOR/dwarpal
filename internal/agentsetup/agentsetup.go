@@ -92,6 +92,32 @@ boundary. Work WITH the gate, not around it:
    a check pass. If a rule is genuinely wrong here, a HUMAN approves the
    escape: `+"`DWARPAL_OVERRIDE=<rule-id>`"+` or `+"`dwarpal bypass --reason`"+`.
 5. **Understand a rule**: `+"`dwarpal explain <rule-id>`"+`.
+
+### Authoring and maintaining `+"`.dwarpal.yml`"+` (you are the config author)
+
+Dwarpal itself never calls an LLM locally — it stays deterministic and offline.
+YOU, the agent, are its judgment layer: you author and keep `+"`.dwarpal.yml`"+`
+consistent with how this codebase actually works. When the user asks to "set up
+Dwarpal" or "update the Dwarpal config", or when you notice the config has
+drifted from reality:
+
+1. Run `+"`dwarpal analyze --json`"+`. It measures the repo deterministically —
+   languages, the commit-size distribution (with a suggested `+"`diff_budget`"+`),
+   dominant import/error conventions, coverage artifacts, security tools, branch
+   prefixes, and layering signals. It makes no network call and never touches
+   your config or source (only the gitignored convention cache).
+2. Read the codebase yourself to add what analyze cannot infer: which
+   directories are true layer boundaries (→ `+"`architecture_rules`"+` forbidding,
+   e.g., DB calls outside the data layer), which paths are generated (→
+   `+"`diff_budget.overrides`"+`), and what a sane scope looks like.
+3. Author or update `+"`.dwarpal.yml`"+` from BOTH sources. Prefer the analyze
+   suggestions over generic defaults; use the distribution (not just the single
+   number) to sanity-check the budget. Explain each non-obvious rule in a comment.
+4. Validate: `+"`dwarpal rules`"+` prints the effective ruleset — confirm it
+   matches your intent. `+"`dwarpal check`"+` must still pass on a clean tree.
+
+Do not invent rules the codebase does not support, and do not weaken a rule
+just to make a commit pass (see point 4 above).
 %s`, beginMarker, agentIdentity(t), endMarker)
 }
 
