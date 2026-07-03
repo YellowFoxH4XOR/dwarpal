@@ -85,7 +85,9 @@ func sarifLevel(s finding.Severity) string {
 // SARIF writes the findings as a SARIF 2.1.0 log to w.
 func SARIF(w io.Writer, in Input) error {
 	seenRules := map[string]bool{}
-	var rules []sarifRule
+	// Non-nil so a zero-finding run marshals "rules": [] — GitHub's SARIF
+	// validator rejects null here (runs[0].tool.driver.rules must be an array).
+	rules := []sarifRule{}
 	results := make([]sarifResult, 0, len(in.Findings))
 
 	for _, f := range in.Findings {
