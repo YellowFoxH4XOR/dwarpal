@@ -1,0 +1,11 @@
+# cli-core (#81): feedback records locally, never sends, prints an issue URL
+exec git init
+exec dwarpal feedback no-broad-catch --reason 'flagged a compliant handler'
+stdout 'recorded locally'
+stdout 'issues/new'
+exists .dwarpal/feedback.log
+grep 'compliant handler' .dwarpal/feedback.log
+
+# reason is mandatory
+! exec dwarpal feedback some-rule
+stderr 'reason is required'

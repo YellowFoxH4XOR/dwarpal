@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -57,7 +58,10 @@ type ArchRule struct {
 type ProvenanceBlock struct {
 	BranchPrefixes []string `koanf:"branch_prefixes"`
 	Trailers       []string `koanf:"trailers"`
-	ApplyGatesTo   string   `koanf:"apply_gates_to"` // agent-only | all-commits
+	// Heuristics are user-defined regexes matched against branch name and
+	// commit message — the PRD's fourth, weakest detection signal.
+	Heuristics   []string `koanf:"heuristics"`
+	ApplyGatesTo string   `koanf:"apply_gates_to"` // agent-only | all-commits
 }
 
 // GatesBlock groups per-gate configuration.
@@ -197,6 +201,7 @@ var allowedKeys = map[string]bool{
 	"provenance.branch_prefixes":         true,
 	"provenance.trailers":                true,
 	"provenance.apply_gates_to":          true,
+	"provenance.heuristics":              true,
 	"gates.diff_budget.max_lines":        true,
 	"gates.diff_budget.max_files":        true,
 	"gates.diff_budget.max_new_files":    true,
@@ -272,6 +277,11 @@ func (c Config) validate() error {
 	case ModeEnforce, ModeWarn, ModeCIStrict:
 	default:
 		return fmt.Errorf("invalid mode %q (want enforce|warn|ci_strict)", c.Mode)
+	}
+	for i, h := range c.Provenance.Heuristics {
+		if _, err := regexp.Compile(h); err != nil {
+			return fmt.Errorf("provenance.heuristics[%d]: invalid regexp %q: %v", i, h, err)
+		}
 	}
 	switch c.Provenance.ApplyGatesTo {
 	case "", ApplyAgentOnly, ApplyAllCommits:
