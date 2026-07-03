@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- CI now tests on **windows-latest** (PRD §11 Q3). It found and fixed a real
+  Windows bug: hook-chaining gated on the unix executable bit (absent on
+  NTFS), so a pre-existing husky-style hook was never chained — now detected
+  by existence on Windows, where git runs hooks by shebang regardless.
+
+## Unreleased
+
 - Contribution model: **DCO** (not a CLA) — CONTRIBUTING.md, the DCO text,
   ADR 0002, and a CI workflow enforcing `Signed-off-by` on every PR commit
 
