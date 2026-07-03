@@ -8,6 +8,10 @@
   contract), and for Claude Code a PreToolUse hook merged into
   .claude/settings.json that feeds block JSON straight back to the model
   before the commit attempt
+- **`check --range --per-commit`**: evaluate each commit separately —
+  budgets are per commit (PRD §5.2), so a range of compliant commits must
+  not fail on their sum. The GitHub Action now uses it for PR ranges
+  (found when the gate blocked its own maintainer's split PR)
 
 ## v0.3.0
 

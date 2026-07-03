@@ -124,7 +124,7 @@ runs:
       run: |
         set -euo pipefail
         conclusion="success"
-        if ! dwarpal check --sarif --range "${DWARPAL_RANGE}" > "${SARIF_FILE}"; then
+        if ! dwarpal check --sarif --per-commit --range "${DWARPAL_RANGE}" > "${SARIF_FILE}"; then
           conclusion="failure"
         fi
         echo "sarif-file=${SARIF_FILE}" >> "$GITHUB_OUTPUT"
