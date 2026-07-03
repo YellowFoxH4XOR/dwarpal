@@ -18,4 +18,6 @@ jobs:
           fetch-depth: 0
       - uses: ./action
         with:
-          version: latest
+          # Dogfood the PR's own code, not the last release: go install accepts
+          # a commit SHA, so the gate tests exactly what this PR ships.
+          version: ${{ github.event.pull_request.head.sha }}
