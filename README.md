@@ -58,9 +58,16 @@ dwarpal rules     # shows every active gate and rule
 | `ai_patterns` | Lint suppressions, hardcoded secrets, string-built SQL, broad catches, near-duplicate functions | error/warn |
 | `scope` | Files outside the declared task (`dwarpal task <id> --paths ...`) | error |
 | `diff_coverage` | Under-tested changed lines (lcov/cobertura/go-cover) | opt-in |
-| `convention_drift` | Fluent-but-foreign code that bucks repo style | info |
+| `convention_drift` | Fluent-but-foreign code — naming, size, imports, error idioms | info |
 | `intent` | "Does this diff do *only* what was asked?" (LLM, BYO key, fail-open) | off |
 | `plugin` | Your existing tools — semgrep, gitleaks, anything with an exit code | opt-in |
+| `architecture_rules` | *Your own* layering assertions (e.g. no DB calls outside `internal/repo`) | opt-in |
+
+The `ai_patterns` and `convention_drift` rows are rule packs: `ai_patterns`
+covers lint-suppressions, secrets (shape + entropy), SQL concatenation, broad
+exception catches, and **near-duplicate functions** (real syntax-tree analysis
+for Go/TS/TSX/Python); `convention_drift` scores added code against your repo's
+own naming, function-size, import-style, and error-idiom norms.
 
 Gates apply to **every commit by default** — quality rules that only bind
 some authors invite drift. Teams that want human commits exempt opt out with
@@ -102,6 +109,7 @@ note); rejected under `ci_strict`.
 
 ## Documentation
 
+- [CLI reference](docs/cli.md) — every command and flag
 - [Configuration reference](docs/configuration.md) — every `.dwarpal.yml` key
 - [Rule reference](docs/rules/) — every rule: what, why, how to fix (also via `dwarpal explain`)
 - [Coverage recipes](docs/recipes/coverage.md) — Go, Jest, Vitest, pytest, JaCoCo, SimpleCov, coverlet

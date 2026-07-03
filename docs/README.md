@@ -8,6 +8,7 @@ quickstart; this tree is the reference.
 
 ## Contents
 
+- **[CLI reference](cli.md)** — every command and flag
 - **[Configuration reference](configuration.md)** — every `.dwarpal.yml` key
 - **[Why harnesses beat prompts](why-harnesses-beat-prompts.md)** — the design
   philosophy in one page
@@ -25,6 +26,7 @@ quickstart; this tree is the reference.
   - [GitLab CI](integrations/gitlab.md)
   - [pre-commit framework](integrations/pre-commit.md)
   - [Docker](integrations/docker.md)
+- **[Architecture decisions (ADRs)](decisions/)** — the non-obvious calls and why
 - **[macOS notarization](notarization.md)** — dormant by decision ([ADR 0001](decisions/0001-defer-macos-notarization.md)); activation runbook for later
 
 ## The gate pipeline in one paragraph

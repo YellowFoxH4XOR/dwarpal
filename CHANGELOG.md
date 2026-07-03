@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Docs refresh: new CLI reference (docs/cli.md — every command incl. doctor,
+  every check flag), README gate table completed (duplicate + architecture_
+  rules), ADR index. Verified: all-commits default consistent, every config
+  key documented, no dead links.
+
+## Unreleased
+
 - Contribution model: **DCO** (not a CLA) — CONTRIBUTING.md, the DCO text,
   ADR 0002, and a CI workflow enforcing `Signed-off-by` on every PR commit
 
