@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/YellowFoxH4XOR/dwarpal/internal/astengine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
@@ -47,16 +48,23 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, idx engine.RepoIndex) ([]fi
 		return nil, nil
 	}
 	conv := index.Conventions
-	// Need a baseline to compare against.
-	if conv.Funcs < 5 {
-		return nil, nil
+	// The Go naming/size checks need a function baseline; the import-style
+	// dimension has its own per-language sample-size guard, so a TS-only repo
+	// (zero Go functions) still gets import scoring.
+	goBaseline := conv.Funcs >= 5
+	var snakeRatio, avg float64
+	if goBaseline {
+		snakeRatio = float64(conv.SnakeCaseFuncs) / float64(conv.Funcs)
+		avg = conv.AvgFuncLines()
 	}
-	snakeRatio := float64(conv.SnakeCaseFuncs) / float64(conv.Funcs)
-	avg := conv.AvgFuncLines()
 
 	var findings []finding.Finding
 	for _, f := range d.Files {
-		if !strings.HasSuffix(f.Path, ".go") || len(f.AddedLines) == 0 {
+		// Import-style dimension (tree-sitter-ast-engine change, D6): any
+		// supported language, before the Go-only function checks below.
+		findings = append(findings, g.importStyleFindings(conv, f)...)
+
+		if !goBaseline || !strings.HasSuffix(f.Path, ".go") || len(f.AddedLines) == 0 {
 			continue
 		}
 		added := map[int]bool{}
@@ -101,6 +109,32 @@ func (g *Gate) finding(file string, line int, rule, msg, suggestion string) find
 		Message:    msg,
 		Suggestion: suggestion,
 	}
+}
+
+// importStyleFindings flags added import lines whose form disagrees with a
+// strong repo majority (dominant form >= 80%). Info severity: an import style
+// is a convention, not a defect.
+func (g *Gate) importStyleFindings(conv repoindex.Conventions, f gitio.FileChange) []finding.Finding {
+	lang := astengine.LanguageFor(f.Path)
+	if lang == "" {
+		return nil
+	}
+	dominant, share := conv.DominantImportForm(string(lang))
+	if dominant == "" || share < 0.8 {
+		return nil // no strong norm to drift from
+	}
+	var out []finding.Finding
+	for _, ln := range f.AddedLines {
+		form := repoindex.ClassifyImportLine(lang, ln.Text)
+		if form == "" || form == dominant {
+			continue
+		}
+		out = append(out, g.finding(f.Path, ln.Number,
+			"import-style",
+			fmt.Sprintf("%s import in a repo where %.0f%% of imports are %s", form, share*100, dominant),
+			fmt.Sprintf("use the repo's dominant %s import form", dominant)))
+	}
+	return out
 }
 
 func touches(fn repoindex.FuncInfo, added map[int]bool) bool {

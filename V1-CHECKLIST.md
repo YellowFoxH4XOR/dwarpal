@@ -37,12 +37,12 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 21. ✅ `no-new-lint-suppressions` (eslint-disable / noqa / nolint / ts-ignore / pragma)
 22. ☐ Approved-override-trailer escape for suppressions
 23. ✅ `no-hardcoded-secrets` — key shapes + private-key headers + Shannon-entropy tier (URL/path false positives excluded)
-24. ◐ `no-sql-concat` — diff-local heuristic ✅; AST + "package uses parameterized queries" context ☐
-25. ◐ `no-broad-catch` — regex heuristic ✅; AST-precise (rethrow/log detection) ☐
+24. ✅ `no-sql-concat` — AST-precise for TS/JS/Python (template-literal/f-string interpolation, `+` concat over syntax nodes); Go + other languages via the regex heuristic. Package-context resolution stays future work
+25. ✅ `no-broad-catch` — AST-precise for TS/JS/Python (catch/except-clause body analysis); Go + others via regex heuristic
 26. ✅ `no-duplicate-function` — token-shingle similarity vs repo inventory (Go)
 27. ✅ AST language: Go (stdlib go/parser — the spike's ADR)
-28. ◐ TypeScript/JavaScript — heuristic function extraction feeds duplicate detection ✅; true tree-sitter AST ☐
-29. ◐ Python — heuristic function extraction feeds duplicate detection ✅; true tree-sitter AST ☐
+28. ✅ TypeScript/JavaScript — true tree-sitter AST (pure-Go gotreesitter, CGO_ENABLED=0 preserved); heuristics demoted to parse-failure fallback
+29. ✅ Python — true tree-sitter AST via the same runtime; heuristic fallback on parse failure
 
 ## E. Gate 4 — Scope Enforcement (§5.2)
 
@@ -59,7 +59,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ## G. Gate 6 — Convention Drift (§5.2)
 
-37. ◐ Repo fingerprint + outlier scoring — naming case + function size (Go) ✅; import-style and error-idiom dimensions ☐; TS/Python ☐
+37. ◐ Repo fingerprint — naming case + function size (Go) ✅; import-style dimension (Go/TS/JS/Python) ✅; error-idiom dimension ☐
 38. ✅ Ships `severity: info` (advisory) by default
 
 ## H. Gate 7 — Intent Verification (§5.2)
@@ -134,7 +134,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ---
 
-**Score: 59 ✅ / 3 ◐ / 22 ☐ (84 items).**
-Functional core + distribution + all in-spec feature gaps: done. Remaining:
-true tree-sitter AST for TS/Python (28, 29 — heuristic tier ships today),
-notarization (63), and the launch motion (76–84).
+**Score: 63 ✅ / 1 ◐ / 20 ☐ (84 items).**
+Functional core + distribution + in-spec gaps + multi-language tree-sitter
+AST: done. Remaining: notarization (63), small stragglers (16, 22, 37's
+error-idiom), docs (36, 53, 61, 62, 76), and the launch motion (77–84).

@@ -51,7 +51,7 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 
 	gates = append(gates, diffbudget.New(cfg.Gates.DiffBudget))
 	if cfg.Gates.AIPatterns.Enabled {
-		gates = append(gates, aipatterns.New(cfg.Gates.AIPatterns.DisableRules))
+		gates = append(gates, aipatterns.New(root, cfg.Gates.AIPatterns.DisableRules))
 	}
 	// Scope reads the declared task manifest when present; absent, it is
 	// warn-only unless the config requires a manifest. The manifest's task id

@@ -1,8 +1,5 @@
-# repo-index Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change m2-depth-gates. Update Purpose after archive.
-## Requirements
 ### Requirement: Repo function index (Go, eager v1)
 `repo-index` SHALL build an in-memory index of the repository's functions by walking the work tree, skipping `.git`, `vendor`, `node_modules`, and `.dwarpal` directories. Go files SHALL be parsed with the stdlib `go/parser`; TypeScript/JavaScript and Python files SHALL be parsed via the `ast-engine` tree-sitter runtime, with the v1 heuristic extractors retained as automatic fallback when AST parsing fails for a file. The index SHALL be built only when at least one index-consuming gate (`no-duplicate-function`, `convention_drift`) is enabled, so runs without stateful gates pay no indexing cost.
 
@@ -22,19 +19,7 @@ TBD - created by archiving change m2-depth-gates. Update Purpose after archive.
 - **WHEN** a Python file fails tree-sitter parsing
 - **THEN** the heuristic indent-based extractor indexes it instead, and the run continues
 
-### Requirement: Function inventory with normalized token shingles
-Each indexed function's entry SHALL include its file, name, line range, and a token-shingle set (k-gram token hashes with identifier names and literal values normalized) suitable for `no-duplicate-function` Jaccard-similarity comparison, so near-duplicates survive renames and literal changes.
-
-#### Scenario: Renamed near-duplicate still matches
-- **WHEN** two functions are structurally identical but differ in identifier names and literal values
-- **THEN** their shingle sets' Jaccard similarity scores at or near 1.0
-
-### Requirement: Convention fingerprint
-The index SHALL accumulate a repo convention fingerprint over Go functions — function count, exported count, snake_case-named count, and total function lines (yielding the average function length) — consumable by the drift gate.
-
-#### Scenario: Fingerprint reflects repo style
-- **WHEN** the index is built over a repo of predominantly camelCase Go functions
-- **THEN** the fingerprint's snake_case ratio is low and its average function length reflects the repo's actual distribution
+## ADDED Requirements
 
 ### Requirement: Import-style fingerprint dimension
 The convention fingerprint SHALL record per-language import-form distributions (Go: grouped vs single imports; TS/JS: named vs default vs namespace vs require; Python: `import` vs `from ... import`), computed from import nodes during index build, consumable by the drift gate.
@@ -42,4 +27,3 @@ The convention fingerprint SHALL record per-language import-form distributions (
 #### Scenario: Fingerprint captures import forms
 - **WHEN** the index is built over a repo whose TS files overwhelmingly use named imports
 - **THEN** the fingerprint's TS import distribution shows named imports as the dominant form
-

@@ -2,6 +2,21 @@
 
 ## v0.2.0 (unreleased)
 
+### Tree-sitter AST engine (pure Go, CGO-free)
+
+- New `internal/astengine`: tree-sitter parsing + queries for TS/JS/Python via
+  the pure-Go gotreesitter runtime — the static-binary promise holds
+- `no-duplicate-function` now uses real syntax trees for TS/JS/Python
+  (heuristic extractors demoted to parse-failure fallback)
+- AST-precise `no-broad-catch` (catch/except body analysis) and
+  `no-sql-concat` (template-literal/f-string interpolation) for TS/JS/Python
+- Drift gate gains the import-style dimension (Go/TS/JS/Python)
+- Index build parallelized across cores + compiled-query cache: 1500-file
+  multi-language corpus indexes in 0.7s (was 5.2s); Go stdlib unaffected
+- Known limitation (documented): the TS grammar mis-parses typed arrow params;
+  tolerant parsing + heuristic supplement covers the gap
+- Binary: 7.6MB -> 38MB (206 embedded grammars; under the 40MB PRD cap)
+
 - **architecture_rules** (PRD §5.3): user-defined forbidden-call assertions
   (`matches` regex over go/ast call targets, `forbidden_outside` globs)
 - **Entropy secret detection**: Shannon-entropy tier of no-hardcoded-secrets

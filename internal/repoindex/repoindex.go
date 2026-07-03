@@ -1,9 +1,9 @@
 // Package repoindex builds the repo-level context the stateful gates need
-// (duplicate-function, convention-drift). It resolves spike blocker B2 with a
-// pragmatic v1 decision: use Go's standard-library go/parser for the AST tier
-// rather than embed tree-sitter. This keeps the binary CGO-free and
-// cross-compilable (the single-static-binary promise) at the cost of covering
-// Go only in v1; TypeScript/Python grammars are a documented future change.
+// (duplicate-function, convention-drift). Go files use the stdlib go/parser
+// (a true AST, fastest for Go); TypeScript/JavaScript/Python use the pure-Go
+// tree-sitter runtime via internal/astengine, with the original heuristic
+// extractors as automatic fallback on parse failure. Everything stays
+// CGO-free, preserving the single-static-binary promise.
 //
 // The index implements engine.RepoIndex (structurally — Ready()), so gates
 // receive it through the unchanged Gate signature and type-assert to *Index.
@@ -11,6 +11,10 @@ package repoindex
 
 import (
 	"go/ast"
+	"runtime"
+	"sync"
+
+	"github.com/YellowFoxH4XOR/dwarpal/internal/astengine"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -33,12 +37,15 @@ type FuncInfo struct {
 	Shingles  map[uint64]struct{}
 }
 
-// Conventions is a lightweight fingerprint of the repo's Go style, for drift.
+// Conventions is a lightweight fingerprint of the repo's style, for drift.
 type Conventions struct {
 	Funcs          int
 	ExportedFuncs  int
 	SnakeCaseFuncs int // funcs whose names contain '_' (un-Go-like)
 	TotalFuncLines int
+	// Imports counts import forms per language (lang -> form -> count),
+	// consumed by the drift gate's import-style dimension.
+	Imports map[string]map[string]int
 }
 
 // AvgFuncLines returns the mean function length, or 0 when empty.
@@ -64,11 +71,14 @@ var skipDir = map[string]bool{
 	".git": true, "vendor": true, "node_modules": true, ".dwarpal": true,
 }
 
-// Build walks root, parses every .go file with go/parser, and indexes each
-// function's shingles and convention stats. Parse errors on individual files
-// are skipped (a syntactically broken file should not fail the whole index).
+// Build walks root and indexes every supported file's functions, shingles,
+// and convention stats. Files are independent, so parsing fans out across
+// CPU cores into worker-local indexes merged at the end — the multi-language
+// benchmark showed serial parsing alone blowing the 2s pipeline budget.
+// Parse errors on individual files are skipped (a syntactically broken file
+// should not fail the whole index).
 func Build(root string) (*Index, error) {
-	idx := &Index{built: true}
+	var paths []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -83,33 +93,100 @@ func Build(root string) (*Index, error) {
 		if FunctionsFor(rel) == nil {
 			return nil
 		}
-		src, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		idx.addFile(rel, src)
+		paths = append(paths, rel)
 		return nil
 	})
-	return idx, err
+	if err != nil {
+		return &Index{built: true}, err
+	}
+
+	workers := runtime.NumCPU()
+	if workers > len(paths) {
+		workers = len(paths)
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	jobs := make(chan string)
+	locals := make([]*Index, workers)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		local := &Index{}
+		locals[w] = local
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for rel := range jobs {
+				src, err := os.ReadFile(filepath.Join(root, rel))
+				if err != nil {
+					continue
+				}
+				local.addFile(rel, src)
+			}
+		}()
+	}
+	for _, rel := range paths {
+		jobs <- rel
+	}
+	close(jobs)
+	wg.Wait()
+
+	idx := &Index{built: true}
+	for _, local := range locals {
+		idx.Funcs = append(idx.Funcs, local.Funcs...)
+		idx.Conventions.merge(local.Conventions)
+	}
+	return idx, nil
+}
+
+// merge folds another fingerprint into this one (worker-local index merge).
+func (c *Conventions) merge(o Conventions) {
+	c.Funcs += o.Funcs
+	c.ExportedFuncs += o.ExportedFuncs
+	c.SnakeCaseFuncs += o.SnakeCaseFuncs
+	c.TotalFuncLines += o.TotalFuncLines
+	for lang, forms := range o.Imports {
+		for form, n := range forms {
+			if c.Imports == nil {
+				c.Imports = map[string]map[string]int{}
+			}
+			if c.Imports[lang] == nil {
+				c.Imports[lang] = map[string]int{}
+			}
+			c.Imports[lang][form] += n
+		}
+	}
 }
 
 // Extractor turns one source file into its function inventory entries.
 type Extractor func(rel string, src []byte) []FuncInfo
 
 // FunctionsFor returns the extractor for a path's language, or nil when the
-// language has no v1 support. Go uses the stdlib go/parser (true AST);
-// TS/JS and Python use documented heuristic extractors.
+// language has no support. Go uses the stdlib go/parser; TS/JS and Python go
+// AST-first (tree-sitter) with heuristic fallback.
 func FunctionsFor(path string) Extractor {
 	switch {
 	case strings.HasSuffix(path, ".go"):
 		return FunctionsInSource
 	case strings.HasSuffix(path, ".ts"), strings.HasSuffix(path, ".tsx"),
 		strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".jsx"):
-		return FunctionsInTSSource
+		return astFirst(FunctionsInTSSource)
 	case strings.HasSuffix(path, ".py"):
-		return FunctionsInPythonSource
+		return astFirst(FunctionsInPythonSource)
 	default:
 		return nil
+	}
+}
+
+// astFirst prefers tree-sitter extraction and degrades to the heuristic
+// extractor when parsing fails (design D4) — so a grammar bug or pathological
+// file costs precision for that one file, never correctness of the run.
+func astFirst(fallback Extractor) Extractor {
+	return func(rel string, src []byte) []FuncInfo {
+		if funcs, ok := functionsViaAST(rel, src); ok {
+			return funcs
+		}
+		return fallback(rel, src)
 	}
 }
 
@@ -120,9 +197,29 @@ func (idx *Index) addFile(rel string, src []byte) {
 		indexFile(idx, rel, src) // functions + conventions
 		return
 	}
-	if ex := FunctionsFor(rel); ex != nil {
-		idx.Funcs = append(idx.Funcs, ex(rel, src)...)
+	// Parse once; share the tree between function extraction and import
+	// counting (the multi-language benchmark showed double-parsing plus
+	// per-file query recompilation dominated the index cost).
+	lang := astengine.LanguageFor(rel)
+	tree, err := astengine.Parse(rel, src)
+	if err != nil {
+		tree = nil
 	}
+	var funcs []FuncInfo
+	extracted := false
+	if tree != nil {
+		funcs, extracted = functionsFromTree(tree, lang, rel, src)
+		if extracted && tree.Partial {
+			funcs = supplementHeuristic(funcs, lang, rel, src)
+		}
+	}
+	if !extracted {
+		if ex := FunctionsFor(rel); ex != nil {
+			funcs = ex(rel, src)
+		}
+	}
+	idx.Funcs = append(idx.Funcs, funcs...)
+	idx.countImportsFromTree(tree, rel, src)
 }
 
 // indexFile parses one Go source file and appends its functions to the index.
