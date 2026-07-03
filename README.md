@@ -22,6 +22,8 @@ brew install --cask YellowFoxH4XOR/tap/dwarpal
 
 > macOS note: the binary is not yet notarized. If Gatekeeper blocks it, run
 > `xattr -d com.apple.quarantine "$(readlink -f /opt/homebrew/bin/dwarpal)"`.
+> Upgrading: run `brew update` first — Homebrew doesn't auto-pull taps, so
+> `brew upgrade` alone may report "already installed" on a stale tap clone.
 
 **Install script** (handles the quarantine step automatically):
 
@@ -76,6 +78,14 @@ so every clone shares the same policy. `dwarpal explain <rule-id>` tells you
 why any rule exists and how to fix a finding. Escape hatch: `dwarpal bypass
 --reason "..."` allows exactly one commit through, fully audited (log + git
 note); rejected under `ci_strict`.
+
+## Documentation
+
+- [Configuration reference](docs/configuration.md) — every `.dwarpal.yml` key
+- [Rule reference](docs/rules/) — every rule: what, why, how to fix (also via `dwarpal explain`)
+- [Coverage recipes](docs/recipes/coverage.md) — Go, Jest, Vitest, pytest, JaCoCo, SimpleCov, coverlet
+- Integrations: [GitHub Actions](docs/integrations/github-actions.md) · [GitLab CI](docs/integrations/gitlab.md) · [pre-commit framework](docs/integrations/pre-commit.md) · [Docker](docs/integrations/docker.md)
+- [Why harnesses beat prompts](docs/why-harnesses-beat-prompts.md) — the philosophy
 
 ## Trust promises
 

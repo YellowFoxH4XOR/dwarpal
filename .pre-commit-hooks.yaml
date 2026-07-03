@@ -1,0 +1,10 @@
+# pre-commit framework hook definition (https://pre-commit.com)
+# Usage: see docs/integrations/pre-commit.md
+- id: dwarpal
+  name: dwarpal
+  description: Quality firewall for AI-authored code — gates the staged diff.
+  entry: dwarpal check
+  language: golang
+  # The gate analyzes the staged diff itself; per-file arguments are noise.
+  pass_filenames: false
+  stages: [pre-commit]
