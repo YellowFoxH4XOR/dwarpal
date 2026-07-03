@@ -117,7 +117,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 71. ✅ Dogfooding — Dwarpal gates its own repository (M1 exit criterion)
 72. ✅ OpenSpec baseline: 18 capabilities / 72 requirements, all changes archived truthfully
 73. ☐ Branch protection on `main` (parked by owner)
-74. ☐ Retag or retire old `v0.1.0` tag (points at pre-identity-rewrite history)
+74. ✅ v0.1.0 retagged onto clean-history commit (545407f, identical tree) — pre-rewrite identity no longer reachable; release + 7 assets intact, tap unaffected (release workflow disabled during the move)
 75. ☐ CI matrix for Windows hook behavior (PRD §11 Q3)
 
 ## O. Launch & community — G6 / M4 (§9, §10, §11)
