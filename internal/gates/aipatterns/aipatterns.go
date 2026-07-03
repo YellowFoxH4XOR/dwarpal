@@ -55,6 +55,11 @@ func RuleIDs() []string {
 func (g *Gate) Run(_ context.Context, d *gitio.Diff, _ engine.RepoIndex) ([]finding.Finding, error) {
 	var findings []finding.Finding
 	for _, f := range d.Files {
+		// Entropy tier of no-hardcoded-secrets: statistical detection of
+		// random-looking tokens that no fixed shape rule can enumerate (#23).
+		if !g.disabled["no-hardcoded-secrets/entropy"] {
+			findings = append(findings, EntropyFindings(f)...)
+		}
 		for _, line := range f.AddedLines {
 			for _, rule := range g.regexRules {
 				if g.disabled[rule.ID] || !rule.Pattern.MatchString(line.Text) {

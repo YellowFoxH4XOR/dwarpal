@@ -1,0 +1,21 @@
+# Dogfood: run the Dwarpal GitHub Action on our own PRs (item #60 — this is the
+# live end-to-end test of action/action.yml: install → check --sarif → upload).
+name: Dwarpal
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write # SARIF upload
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./action
+        with:
+          version: latest

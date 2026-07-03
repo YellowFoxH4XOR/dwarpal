@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
@@ -47,8 +46,9 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, idx engine.RepoIndex) ([]fi
 
 	var findings []finding.Finding
 	for _, f := range d.Files {
-		if !strings.HasSuffix(f.Path, ".go") || len(f.AddedLines) == 0 {
-			continue
+		extract := repoindex.FunctionsFor(f.Path)
+		if extract == nil || len(f.AddedLines) == 0 {
+			continue // language without v1 function extraction
 		}
 		added := map[int]bool{}
 		for _, ln := range f.AddedLines {
@@ -58,7 +58,7 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, idx engine.RepoIndex) ([]fi
 		if err != nil {
 			continue
 		}
-		for _, fn := range repoindex.FunctionsInSource(f.Path, src) {
+		for _, fn := range extract(f.Path, src) {
 			if !touchesAdded(fn, added) {
 				continue
 			}

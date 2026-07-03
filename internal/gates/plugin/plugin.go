@@ -61,6 +61,12 @@ func (g *Gate) Run(ctx context.Context, d *gitio.Diff, _ engine.RepoIndex) ([]fi
 		return nil, fmt.Errorf("plugin %q failed to run: %w", g.name, err)
 	}
 
+	// Structured path (#44): tools that emit JSON (gitleaks, semgrep) get their
+	// findings mapped individually with file:line, instead of one blob finding.
+	if fs, ok := ParseToolJSON(g.name, out); ok {
+		return fs, nil
+	}
+
 	return []finding.Finding{{
 		Gate:       g.ID(),
 		RuleID:     "exit-nonzero",

@@ -10,6 +10,7 @@ import (
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/aipatterns"
+	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/archrules"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/branchpolicy"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/diffbudget"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/diffcoverage"
@@ -53,10 +54,15 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 		gates = append(gates, aipatterns.New(cfg.Gates.AIPatterns.DisableRules))
 	}
 	// Scope reads the declared task manifest when present; absent, it is
-	// warn-only unless the config requires a manifest.
+	// warn-only unless the config requires a manifest. The manifest's task id
+	// doubles as the intent text for Gate 7 (#42).
 	var scopePaths []string
+	taskIntent := ""
 	if m, ok, _ := taskmanifest.Load(root); ok {
 		scopePaths = m.Paths
+		taskIntent = m.ID
+	} else if ref := taskmanifest.TicketFromBranch(branch); ref != "" {
+		taskIntent = ref // #31: ticket reference in the branch name as fallback identity
 	}
 	gates = append(gates, scope.New(scopePaths, cfg.Gates.Scope.AllowAlways, cfg.Gates.Scope.RequireTaskManifest))
 
@@ -71,7 +77,7 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 
 	// Gate 7 (intent) is opt-in and BYO-key; it never blocks on infra failure.
 	if ic := cfg.Gates.IntentCheck; ic.Enabled {
-		if g := buildIntentGate(ic); g != nil {
+		if g := buildIntentGate(ic, taskIntent); g != nil {
 			gates = append(gates, g)
 		}
 	}
@@ -97,6 +103,19 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 		gates = append(gates, drift.New(root, finding.Severity(drf.Severity)))
 	}
 
+	// User-defined architecture rules (#47, PRD §5.3): forbidden-call
+	// assertions evaluated over go/ast on added lines.
+	if len(cfg.ArchRules) > 0 {
+		rules := make([]archrules.Rule, len(cfg.ArchRules))
+		for i, r := range cfg.ArchRules {
+			rules[i] = archrules.Rule{
+				ID: r.ID, Description: r.Description, Language: r.Language,
+				Matches: r.Matches, ForbiddenOutside: r.ForbiddenOutside, Severity: r.Severity,
+			}
+		}
+		gates = append(gates, archrules.New(root, rules))
+	}
+
 	for _, p := range cfg.Gates.Plugins {
 		gates = append(gates, plugin.New(p.Name, p.Exec, p.When, root))
 	}
@@ -106,7 +125,7 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 // buildIntentGate constructs the LLM intent gate from config + the env-held API
 // key. Returns nil (gate omitted) when no key is available, so a misconfigured
 // intent gate never silently half-works.
-func buildIntentGate(ic config.IntentCheck) engine.Gate {
+func buildIntentGate(ic config.IntentCheck, taskIntent string) engine.Gate {
 	key := os.Getenv(llmAPIKeyEnv)
 	if key == "" {
 		return nil
@@ -115,8 +134,13 @@ func buildIntentGate(ic config.IntentCheck) engine.Gate {
 	if timeout == 0 {
 		timeout = 30 * time.Second // PRD default
 	}
-	provider := intent.NewOpenAIProvider(ic.Endpoint, ic.Model, key)
-	return intent.New(provider, "", timeout) // task intent wired with the manifest loader
+	var provider intent.Provider
+	if ic.Provider == "anthropic" {
+		provider = intent.NewAnthropicProvider(ic.Model, key)
+	} else {
+		provider = intent.NewOpenAIProvider(ic.Endpoint, ic.Model, key)
+	}
+	return intent.New(provider, taskIntent, timeout)
 }
 
 // currentBranch returns the current branch name, or "" if it cannot be
