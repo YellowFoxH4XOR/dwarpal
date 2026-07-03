@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.1 (unreleased)
+## v0.3.0
 
 - **BREAKING (behavior)**: `provenance.apply_gates_to` now defaults to
   `all-commits` — every commit is gated, regardless of author. Set
