@@ -158,10 +158,20 @@ func TestRun_WritesOnlyTheGitignoredCache(t *testing.T) {
 
 func snapshot(t *testing.T, dir string) map[string]bool {
 	t.Helper()
+	gitDir := filepath.Join(dir, ".git")
 	files := map[string]bool{}
 	err := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		// .git is git's own churn (auto-maintenance creates and removes lock
+		// files mid-walk); the test cares only about config/source/cache, so
+		// skip it entirely — and tolerate anything that vanishes under us.
 		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return err
+		}
+		if info.IsDir() && p == gitDir {
+			return filepath.SkipDir
 		}
 		files[p] = true
 		return nil

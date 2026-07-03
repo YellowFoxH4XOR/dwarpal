@@ -1,7 +1,17 @@
 # Changelog
 
-## Unreleased
+## v0.5.0 — 2026-07-03
 
+- **Agent-authored config.** New `dwarpal analyze [--json]` measures the repo
+  with no LLM and no network — convention fingerprint, a diff budget fitted to
+  the repo's own commit-size distribution (2×p75, outlier-robust), and detected
+  coverage artifacts, security tools, branch prefixes, and layering signals.
+  `dwarpal init --learn` prints the analysis before writing the starter config.
+  The agent-setup instruction block now teaches Claude Code / Codex / OpenCode /
+  Pi to author and maintain `.dwarpal.yml` from those facts, so nobody
+  hand-tunes YAML. Dwarpal stays deterministic and offline locally; the optional
+  LLM intent gate is unchanged (CI-only, off by default). See
+  docs/agent-config.md.
 - Docs refresh: new CLI reference (docs/cli.md — every command incl. doctor,
   every check flag), README gate table completed (duplicate + architecture_
   rules), ADR index. Verified: all-commits default consistent, every config
@@ -10,14 +20,8 @@
   Windows bug: hook-chaining gated on the unix executable bit (absent on
   NTFS), so a pre-existing husky-style hook was never chained — now detected
   by existence on Windows, where git runs hooks by shebang regardless.
-
-## Unreleased
-
 - Contribution model: **DCO** (not a CLA) — CONTRIBUTING.md, the DCO text,
-  ADR 0002, and a CI workflow enforcing `Signed-off-by` on every PR commit
-
-## Unreleased
-
+  ADR 0002, and a CI workflow enforcing `Signed-off-by` on every PR commit.
 - macOS code signing + notarization wired into the release pipeline
   (GoReleaser's built-in quill — cross-platform, no macOS runner). Dormant
   until the Apple secrets are set; see docs/notarization.md for the one-time
