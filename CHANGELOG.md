@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.0
 
 - **`dwarpal agent setup <claude-code|codex|opencode|pi>`** — wires the gate
   into the agent's own loop: idempotent managed instruction blocks in
