@@ -44,6 +44,20 @@ var candidateTokenPattern = regexp.MustCompile(`[A-Za-z0-9+/=_-]{20,}`)
 // caught by the assigned-literal shape rule instead.
 var urlPattern = regexp.MustCompile(`\bhttps?://\S+|\bwww\.\S+`)
 
+// hasDigit gates the entropy rule: machine-generated secrets essentially
+// always mix digits into the token, while long human identifiers
+// (TestCache_WarmRebuildPreservesShingles scored 4.2 bits/char and blocked a
+// real commit) usually don't. Requiring a digit removes the identifier
+// false-positive class at negligible recall cost.
+func hasDigit(tok string) bool {
+	for _, c := range tok {
+		if c >= '0' && c <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
 // pathLike reports whether a token reads as a filesystem/URL path rather
 // than an encoded credential: multiple '/' separators with no other base64
 // machinery ('+', '='). Base64 rarely contains more than one '/', while
@@ -69,7 +83,7 @@ func EntropyFindings(f gitio.FileChange) []finding.Finding {
 	for _, line := range f.AddedLines {
 		scanned := urlPattern.ReplaceAllString(line.Text, "")
 		for _, tok := range candidateTokenPattern.FindAllString(scanned, -1) {
-			if pathLike(tok) || shannonEntropy(tok) <= entropyThreshold {
+			if pathLike(tok) || !hasDigit(tok) || shannonEntropy(tok) <= entropyThreshold {
 				continue
 			}
 			findings = append(findings, finding.Finding{

@@ -19,6 +19,7 @@ import (
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/intent"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/plugin"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/scope"
+	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/provenance"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/repoindex"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/taskmanifest"
@@ -70,6 +71,13 @@ func collectOverrides(root, rangeArg string) []string {
 // i.e. all-commits mode, or agent-only mode and the change is agent-authored.
 // This is the R2 mitigation: human commits stay untouched by default.
 func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
+	return buildGatesForDiff(root, cfg, overrides, nil)
+}
+
+// buildGatesForDiff additionally knows the diff, letting expensive setup skip
+// when irrelevant: the repo index is only built when the diff actually touches
+// a language its consumer gates can score.
+func buildGatesForDiff(root string, cfg config.Config, overrides []string, d *gitio.Diff) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
 	branch := currentBranch(root)
 	prov := provenance.New(cfg.Provenance.BranchPrefixes, cfg.Provenance.Trailers).
 		WithHeuristics(cfg.Provenance.Heuristics).
@@ -128,8 +136,8 @@ func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Ga
 	// otherwise. (Incremental caching under .dwarpal/cache/ is future work — B1.)
 	dup := cfg.Gates.Duplicate
 	drf := cfg.Gates.ConventionDrift
-	if dup.Enabled || drf.Enabled {
-		if built, err := repoindex.Build(root); err == nil {
+	if (dup.Enabled || drf.Enabled) && diffTouchesIndexedLanguage(d) {
+		if built, err := repoindex.BuildFor(root, dup.Enabled); err == nil {
 			idx = built
 		}
 	}
@@ -161,6 +169,21 @@ func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Ga
 		gates = append(gates, plugin.New(p.Name, p.Exec, p.When, root))
 	}
 	return gates, prov, idx
+}
+
+// diffTouchesIndexedLanguage reports whether any changed file is in a language
+// the index consumers (duplicate, drift) can score. nil diff = unknown caller:
+// build the index (safe default).
+func diffTouchesIndexedLanguage(d *gitio.Diff) bool {
+	if d == nil {
+		return true
+	}
+	for _, f := range d.Files {
+		if repoindex.FunctionsFor(f.Path) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // buildIntentGate constructs the LLM intent gate from config + the env-held API

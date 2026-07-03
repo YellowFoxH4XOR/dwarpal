@@ -68,7 +68,22 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string, perCommit bool)
 		return &exitError{code: 2, msg: err.Error()}
 	}
 
-	gates, prov, idx := buildGates(root, cfg, collectOverrides(root, rangeArg))
+	// Nothing to check: return before building gates — the repo index (drift/
+	// duplicate) is expensive on big repos and must never run for an empty
+	// diff (observed live: an empty staging area hung for 30s+ building the
+	// index of a 2,167-file repo).
+	if diff.Empty() && !perCommit {
+		if jsonOut {
+			_ = report.JSON(os.Stdout, report.Input{Result: report.ResultPassed})
+		} else if sarifOut {
+			_ = report.SARIF(os.Stdout, report.Input{Result: report.ResultPassed})
+		} else {
+			fmt.Fprintln(os.Stdout, "Dwarpal: nothing staged to check.")
+		}
+		return nil
+	}
+
+	gates, prov, idx := buildGatesForDiff(root, cfg, collectOverrides(root, rangeArg), diff)
 
 	var res engine.Result
 	if perCommit && rangeArg != "" {
