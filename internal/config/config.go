@@ -31,10 +31,26 @@ const (
 
 // Config is the whole validated configuration.
 type Config struct {
-	Version    int             `koanf:"version"`
-	Mode       Mode            `koanf:"mode"`
-	Provenance ProvenanceBlock `koanf:"provenance"`
-	Gates      GatesBlock      `koanf:"gates"`
+	Version          int             `koanf:"version"`
+	Mode             Mode            `koanf:"mode"`
+	StopOnFirstBlock bool            `koanf:"stop_on_first_block"`
+	Provenance       ProvenanceBlock `koanf:"provenance"`
+	Gates            GatesBlock      `koanf:"gates"`
+	ArchRules        []ArchRule      `koanf:"architecture_rules"`
+}
+
+// ArchRule is one user-defined architecture assertion (PRD §5.3). Calls whose
+// rendered target matches Matches are FORBIDDEN outside the ForbiddenOutside
+// globs. Query is accepted for forward-compat with tree-sitter query syntax
+// but ignored by the v1 Go (go/parser) implementation.
+type ArchRule struct {
+	ID               string   `koanf:"id"`
+	Description      string   `koanf:"description"`
+	Language         string   `koanf:"language"`
+	Query            string   `koanf:"query"`
+	Matches          string   `koanf:"matches"`
+	ForbiddenOutside []string `koanf:"forbidden_outside"`
+	Severity         string   `koanf:"severity"`
 }
 
 // ProvenanceBlock configures agent detection and which commits gates apply to.
@@ -176,6 +192,8 @@ const Filename = ".dwarpal.yml"
 var allowedKeys = map[string]bool{
 	"version":                            true,
 	"mode":                               true,
+	"stop_on_first_block":                true,
+	"architecture_rules":                 true,
 	"provenance.branch_prefixes":         true,
 	"provenance.trailers":                true,
 	"provenance.apply_gates_to":          true,

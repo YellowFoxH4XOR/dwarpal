@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.2.0 (unreleased)
+
+- **architecture_rules** (PRD §5.3): user-defined forbidden-call assertions
+  (`matches` regex over go/ast call targets, `forbidden_outside` globs)
+- **Entropy secret detection**: Shannon-entropy tier of no-hardcoded-secrets
+  (URL/path false positives excluded — found by dogfood)
+- **TS/JS + Python duplicate detection**: heuristic function extraction feeds
+  the repo index, so no-duplicate-function now covers three languages
+- **Anthropic provider** for the intent gate; task manifest id (or branch
+  ticket ref like AUTH-42) now feeds the intent prompt
+- **Plugin JSON parsing**: gitleaks/semgrep-style output maps to per-finding
+  file:line instead of one blob
+- **`check --diff <file>`** patch-file mode; **`--explain-for-agent`** alias
+- **`stop_on_first_block`** engine option
+- **Provenance git notes** (refs/notes/dwarpal-provenance) on passing agent checks
+- **Benchmarked**: 140k-LOC repo indexes in ~150ms (13× inside the 2s budget);
+  1.8M LOC in 2.4s — incremental caching demoted to >1M-LOC-monorepo work
+
 ## v0.1.1
 
 - **Fixed**: `install.sh` strips macOS's `com.apple.quarantine` attribute

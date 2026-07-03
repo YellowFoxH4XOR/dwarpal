@@ -79,18 +79,50 @@ func Build(root string) (*Index, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") {
+		rel, _ := filepath.Rel(root, path)
+		if FunctionsFor(rel) == nil {
 			return nil
 		}
 		src, err := os.ReadFile(path)
 		if err != nil {
 			return nil
 		}
-		rel, _ := filepath.Rel(root, path)
-		indexFile(idx, rel, src)
+		idx.addFile(rel, src)
 		return nil
 	})
 	return idx, err
+}
+
+// Extractor turns one source file into its function inventory entries.
+type Extractor func(rel string, src []byte) []FuncInfo
+
+// FunctionsFor returns the extractor for a path's language, or nil when the
+// language has no v1 support. Go uses the stdlib go/parser (true AST);
+// TS/JS and Python use documented heuristic extractors.
+func FunctionsFor(path string) Extractor {
+	switch {
+	case strings.HasSuffix(path, ".go"):
+		return FunctionsInSource
+	case strings.HasSuffix(path, ".ts"), strings.HasSuffix(path, ".tsx"),
+		strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".jsx"):
+		return FunctionsInTSSource
+	case strings.HasSuffix(path, ".py"):
+		return FunctionsInPythonSource
+	default:
+		return nil
+	}
+}
+
+// addFile indexes one file with its language extractor. Go files additionally
+// feed the convention fingerprint (drift is Go-only in v1).
+func (idx *Index) addFile(rel string, src []byte) {
+	if strings.HasSuffix(rel, ".go") {
+		indexFile(idx, rel, src) // functions + conventions
+		return
+	}
+	if ex := FunctionsFor(rel); ex != nil {
+		idx.Funcs = append(idx.Funcs, ex(rel, src)...)
+	}
 }
 
 // indexFile parses one Go source file and appends its functions to the index.

@@ -10,6 +10,7 @@ import (
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
+	"github.com/YellowFoxH4XOR/dwarpal/internal/provenance"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/report"
 )
 
@@ -18,21 +19,24 @@ func newCheckCmd() *cobra.Command {
 		jsonOut  bool
 		sarifOut bool
 		rangeArg string
+		diffFile string
 	)
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Run the gate pipeline against staged changes (or a commit range)",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runCheck(jsonOut, sarifOut, rangeArg)
+			return runCheck(jsonOut, sarifOut, rangeArg, diffFile)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON (stdout only)")
+	cmd.Flags().BoolVar(&jsonOut, "explain-for-agent", false, "alias of --json: block output an agent can consume to self-correct")
 	cmd.Flags().BoolVar(&sarifOut, "sarif", false, "emit SARIF 2.1.0 for CI annotation (stdout only)")
 	cmd.Flags().StringVar(&rangeArg, "range", "", "check a commit range instead of the staging area, e.g. HEAD~1..HEAD")
+	cmd.Flags().StringVar(&diffFile, "diff", "", "check a unified-diff patch file instead of the staging area")
 	return cmd
 }
 
-func runCheck(jsonOut, sarifOut bool, rangeArg string) error {
+func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string) error {
 	if !gitAvailable() {
 		return &exitError{code: 2, msg: gitio.ErrGitNotFound.Error()}
 	}
@@ -48,17 +52,21 @@ func runCheck(jsonOut, sarifOut bool, rangeArg string) error {
 
 	ex := gitio.NewExtractor(root)
 	var diff *gitio.Diff
-	if rangeArg != "" {
+	switch {
+	case diffFile != "":
+		diff, err = gitio.FromPatchFile(diffFile)
+	case rangeArg != "":
 		diff, err = ex.Range(rangeArg)
-	} else {
+	default:
 		diff, err = ex.Staged()
 	}
 	if err != nil {
 		return &exitError{code: 2, msg: err.Error()}
 	}
 
-	gates, _, idx := buildGates(root, cfg)
-	res := engine.Run(context.Background(), gates, diff, idx)
+	gates, prov, idx := buildGates(root, cfg)
+	res := engine.RunWith(context.Background(), gates, diff, idx,
+		engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
 
 	blocking := res.Blocking() && cfg.Mode != config.ModeWarn
 	in := report.Input{
@@ -87,6 +95,11 @@ func runCheck(jsonOut, sarifOut bool, rangeArg string) error {
 
 	if blocking {
 		return &exitError{code: 1}
+	}
+	// Passing agent check: record provenance as a git note for later
+	// git-blame forensics (#19). Best-effort — never affects the verdict.
+	if prov.IsAgent {
+		_ = provenance.AttachNote(root, prov)
 	}
 	return nil
 }

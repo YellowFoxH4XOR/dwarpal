@@ -45,3 +45,20 @@ func TestSARIF_ShapeAndLevels(t *testing.T) {
 		t.Errorf("location not emitted:\n%s", out)
 	}
 }
+
+// Regression: a zero-finding run must marshal rules/results as [] (not null) —
+// GitHub's SARIF upload rejects "rules is not of a type(s) array". Caught live
+// by the first real Action run on PR #3.
+func TestSARIF_EmptyRunIsValidArrays(t *testing.T) {
+	var buf bytes.Buffer
+	if err := SARIF(&buf, Input{Result: ResultPassed}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"rules": []`) {
+		t.Fatalf("empty run must emit rules: [], got:\n%s", out)
+	}
+	if !strings.Contains(out, `"results": []`) {
+		t.Fatalf("empty run must emit results: [], got:\n%s", out)
+	}
+}

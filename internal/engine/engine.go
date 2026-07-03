@@ -63,16 +63,31 @@ func (r Result) Blocking() bool {
 	return false
 }
 
+// Options tunes a pipeline run.
+type Options struct {
+	// StopOnFirstBlock ends the run at the first gate that produced a blocking
+	// finding (or gate error), instead of the report-everything default.
+	StopOnFirstBlock bool
+}
+
 // Run executes the gates against the diff and aggregates everything.
 func Run(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex) Result {
+	return RunWith(ctx, gates, d, idx, Options{})
+}
+
+// RunWith executes the gates with explicit options.
+func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, opts Options) Result {
 	var res Result
 	for _, g := range gates {
 		fs, err := g.Run(ctx, d, idx)
 		if err != nil {
 			res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
-			continue
+		} else {
+			res.Findings = append(res.Findings, fs...)
 		}
-		res.Findings = append(res.Findings, fs...)
+		if opts.StopOnFirstBlock && res.Blocking() {
+			break
+		}
 	}
 	return res
 }
