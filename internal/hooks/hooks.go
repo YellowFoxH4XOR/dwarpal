@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -121,6 +122,12 @@ func isExecutableFile(p string) bool {
 	fi, err := os.Stat(p)
 	if err != nil || fi.IsDir() {
 		return false
+	}
+	// Windows/NTFS has no unix exec bit, and Git for Windows runs hooks by
+	// shebang regardless — so any regular file in a hooks dir is runnable.
+	// On unix, git only runs +x hooks, so we chain only to those.
+	if runtime.GOOS == "windows" {
+		return true
 	}
 	return fi.Mode()&0o111 != 0
 }
