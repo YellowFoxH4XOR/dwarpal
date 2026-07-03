@@ -53,29 +53,29 @@ func Supports(path string) bool { return LanguageFor(path) != "" }
 // structurally valid regions, but constructs inside error regions are missing
 // — callers should supplement with the heuristic tier.
 type Tree struct {
-	bound    *ts.BoundTree
-	lang     *ts.Language
-	langName Language
-	src      []byte
-	Partial  bool
+	bound   *ts.BoundTree
+	lang    *ts.Language
+	grammar string // detected grammar identity (e.g. "typescript" vs "tsx")
+	src     []byte
+	Partial bool
 }
 
 // Parse parses src as path's language. An error means the caller should fall
 // back to the heuristic tier for this file (decision D4) — never fail the run.
 func Parse(path string, src []byte) (*Tree, error) {
-	langName := LanguageFor(path)
-	if langName == "" {
+	if LanguageFor(path) == "" {
 		return nil, fmt.Errorf("astengine: unsupported language for %s", path)
 	}
-	var lang *ts.Language
-	switch langName {
-	case LangTS:
-		lang = grammars.TypescriptLanguage()
-	case LangJS:
-		lang = grammars.JavascriptLanguage()
-	case LangPy:
-		lang = grammars.PythonLanguage()
+	// Use the SAME grammar the parser will pick (DetectLanguage): .tsx maps to
+	// the TSX grammar, whose node IDs differ from plain TypeScript — compiling
+	// queries against the wrong grammar silently matches nothing (found by the
+	// realistic-code check: a .tsx component parsed fine but extracted zero
+	// functions).
+	entry := grammars.DetectLanguage(path)
+	if entry == nil {
+		return nil, fmt.Errorf("astengine: no grammar for %s", path)
 	}
+	lang := entry.Language()
 	bound, err := grammars.ParseFile(path, src)
 	if err != nil {
 		return nil, fmt.Errorf("astengine: parsing %s: %w", path, err)
@@ -94,7 +94,7 @@ func Parse(path string, src []byte) (*Tree, error) {
 	if root.IsError() && root.ChildCount() == 0 {
 		return nil, fmt.Errorf("astengine: %s failed to parse", path)
 	}
-	return &Tree{bound: bound, lang: lang, langName: langName, src: src, Partial: root.HasError()}, nil
+	return &Tree{bound: bound, lang: lang, grammar: entry.Name, src: src, Partial: root.HasError()}, nil
 }
 
 // Capture is one query capture: its capture name, source text, and 1-indexed
@@ -115,8 +115,12 @@ var (
 	queryCache = map[string]*ts.Query{}
 )
 
-func compiledQuery(lang *ts.Language, langName Language, query string) (*ts.Query, error) {
-	key := string(langName) + "\x00" + query
+func compiledQuery(lang *ts.Language, grammar string, query string) (*ts.Query, error) {
+	// Key by the detected GRAMMAR, not the coarse language label: .ts and .tsx
+	// share a label but use different grammars with different node IDs — a
+	// cache collision here silently matches nothing (found by the TSX
+	// regression test).
+	key := grammar + "\x00" + query
 	queryMu.RLock()
 	q, ok := queryCache[key]
 	queryMu.RUnlock()
@@ -136,7 +140,7 @@ func compiledQuery(lang *ts.Language, langName Language, query string) (*ts.Quer
 // Query compiles (cached) and runs a tree-sitter .scm query, returning all
 // captures in document order.
 func (t *Tree) Query(query string) ([]Capture, error) {
-	q, err := compiledQuery(t.lang, t.langName, query)
+	q, err := compiledQuery(t.lang, t.grammar, query)
 	if err != nil {
 		return nil, fmt.Errorf("astengine: compiling query: %w", err)
 	}

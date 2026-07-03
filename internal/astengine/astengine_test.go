@@ -76,3 +76,22 @@ func TestParse_BrokenSourceIsPartial(t *testing.T) {
 		}
 	}
 }
+
+// Regression: .tsx uses the TSX grammar — queries must compile against the
+// same grammar the parser picked, or they silently match nothing.
+func TestParseAndQuery_TSXComponent(t *testing.T) {
+	src := []byte(`export function App({ items }: Props) {
+  return <ul>{items.map((i) => <li key={i.id}>{i.name}</li>)}</ul>;
+}`)
+	tree, err := Parse("component.tsx", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caps, err := tree.Query(`(function_declaration name: (identifier) @fn)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(caps) != 1 || caps[0].Text != "App" {
+		t.Fatalf("TSX component function not captured: %+v", caps)
+	}
+}
