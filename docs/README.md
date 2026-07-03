@@ -25,6 +25,7 @@ quickstart; this tree is the reference.
   - [GitLab CI](integrations/gitlab.md)
   - [pre-commit framework](integrations/pre-commit.md)
   - [Docker](integrations/docker.md)
+- **[macOS notarization setup](notarization.md)** — the one-time Apple runbook to sign & notarize releases
 
 ## The gate pipeline in one paragraph
 

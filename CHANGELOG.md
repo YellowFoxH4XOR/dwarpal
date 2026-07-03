@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- macOS code signing + notarization wired into the release pipeline
+  (GoReleaser's built-in quill — cross-platform, no macOS runner). Dormant
+  until the Apple secrets are set; see docs/notarization.md for the one-time
+  setup. Activating it removes the Gatekeeper `xattr` workaround for users.
+
 ## v0.4.1
 
 - **Fixed: `dwarpal check` could hang indefinitely** on large real-world
