@@ -126,7 +126,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 77. ☐ Show HN + r/ClaudeCode + r/cursor + r/ExperiencedDevs launch posts
 78. ☐ 3 recipe blog posts (Claude Code, Cursor, CI-only setups)
 79. ☐ Register dwarpal.dev / dwarpal.io + trademark search (§11 Q1)
-80. ☐ CLA vs DCO decision for contributions (§11 Q5)
+80. ✅ DCO chosen over CLA (ADR 0002) — CONTRIBUTING.md + DCO + a CI check enforcing sign-off
 81. ✅ `dwarpal feedback <rule> --reason` — local-only log + prefilled issue URL (no-telemetry promise kept)
 82. ☐ Design-partner outreach → 3 LOIs from 50+ eng companies on ci_strict (§9)
 83. ☐ Next language grammar by community demand — Rust or Java (M4)

@@ -1,0 +1,32 @@
+# Enforce the DCO: every commit in a PR must carry a Signed-off-by trailer
+# matching its author. Keeps CONTRIBUTING's promise real, no external bot.
+name: DCO
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check sign-off on each commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          fail=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            author="$(git show -s --format='%an <%ae>' "$sha")"
+            if ! git show -s --format='%b' "$sha" | grep -qiF "Signed-off-by: $author"; then
+              echo "::error::commit $sha is missing 'Signed-off-by: $author' — run: git commit -s --amend (or git rebase --signoff)"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "All commits signed off."
+          exit $fail

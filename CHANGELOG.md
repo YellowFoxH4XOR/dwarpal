@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Contribution model: **DCO** (not a CLA) — CONTRIBUTING.md, the DCO text,
+  ADR 0002, and a CI workflow enforcing `Signed-off-by` on every PR commit
+
+## Unreleased
+
 - macOS code signing + notarization wired into the release pipeline
   (GoReleaser's built-in quill — cross-platform, no macOS runner). Dormant
   until the Apple secrets are set; see docs/notarization.md for the one-time
