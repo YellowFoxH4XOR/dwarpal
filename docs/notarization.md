@@ -1,5 +1,13 @@
 # macOS code signing & notarization — setup runbook
 
+> **Status: dormant by decision (2026-07-03).** The owner has chosen **not** to
+> activate notarization for now — it requires a paid Apple Developer account
+> and the maintenance of signing credentials, and the `xattr` one-liner (and
+> the install script's automatic quarantine strip) is an acceptable stopgap at
+> this stage. The pipeline wiring below is left in place and inert; activating
+> it later is purely additive (set the five secrets, tag a release) with no
+> code change. This runbook is the how-to for that future day.
+
 The release pipeline signs and notarizes the macOS binaries the way any
 distributed Mac CLI does, so Gatekeeper stops flagging them and the
 `xattr -d com.apple.quarantine` workaround becomes unnecessary. It uses

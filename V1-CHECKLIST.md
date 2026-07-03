@@ -100,7 +100,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 60. ✅ GitHub Action — verified live on PR #3: install → check --sarif → SARIF upload (dogfood workflow pins the PR head SHA)
 61. ✅ GitLab CI template (docs/integrations/gitlab.md)
 62. ✅ pre-commit framework — .pre-commit-hooks.yaml + docs/integrations/pre-commit.md
-63. ☐ macOS codesign + notarization (the real Gatekeeper fix; needs Apple Developer ID)
+63. ⏸ macOS codesign + notarization — pipeline wired & dormant (GoReleaser/quill); **deliberately not activated** (owner decision 2026-07-03): needs a paid Apple Developer account, and the install-script quarantine strip + `xattr` note are an acceptable stopgap. One-time activation runbook: docs/notarization.md
 64. ✅ No telemetry, no network in default operation (stated in README)
 
 ## M. Engine & performance (§6)
