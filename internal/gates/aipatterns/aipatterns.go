@@ -21,18 +21,20 @@ const gateID = "ai_patterns"
 
 // Gate runs the enabled rule pack against added lines.
 type Gate struct {
+	root       string
 	regexRules []RegexRule
 	disabled   map[string]bool
 }
 
 // New builds the gate with the built-in rules, minus any disabled by ID
-// (config's disable_rules).
-func New(disable []string) *Gate {
+// (config's disable_rules). root is the repo work tree — the AST tier reads
+// full file contents from it.
+func New(root string, disable []string) *Gate {
 	disabled := make(map[string]bool, len(disable))
 	for _, id := range disable {
 		disabled[id] = true
 	}
-	return &Gate{regexRules: builtinRegexRules(), disabled: disabled}
+	return &Gate{root: root, regexRules: builtinRegexRules(), disabled: disabled}
 }
 
 // ID identifies the gate.
@@ -60,10 +62,26 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, _ engine.RepoIndex) ([]find
 		if !g.disabled["no-hardcoded-secrets/entropy"] {
 			findings = append(findings, EntropyFindings(f)...)
 		}
+		// AST-precise tier for TS/JS/Python (design D5). When it handles a
+		// file, the regex heuristics for the same two rules are suppressed for
+		// that file — precision replaces approximation, never doubles it.
+		astHandled := false
+		if g.root != "" {
+			var astFs []finding.Finding
+			astFs, astHandled = astRuleFindings(g.root, f)
+			for _, af := range astFs {
+				if !g.disabled[af.RuleID] {
+					findings = append(findings, af)
+				}
+			}
+		}
 		for _, line := range f.AddedLines {
 			for _, rule := range g.regexRules {
 				if g.disabled[rule.ID] || !rule.Pattern.MatchString(line.Text) {
 					continue
+				}
+				if astHandled && (rule.ID == "no-sql-concat" || rule.ID == "no-broad-catch") {
+					continue // AST tier covered this file for these rules
 				}
 				findings = append(findings, finding.Finding{
 					Gate:       gateID,
