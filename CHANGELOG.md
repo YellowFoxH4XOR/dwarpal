@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.1
 
 - **Fixed: `dwarpal check` could hang indefinitely** on large real-world
   repos (observed: 2,167-file TS repo, 30s+ and climbing) — the GLR parser
