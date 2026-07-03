@@ -1,0 +1,9 @@
+# rule_overrides validates its values fail-closed: a bad severity is rejected.
+exec git init
+! exec dwarpal rules
+stderr 'invalid severity'
+
+-- .dwarpal.yml --
+version: 1
+rule_overrides:
+  "ai_patterns/no-sql-concat": "silent"

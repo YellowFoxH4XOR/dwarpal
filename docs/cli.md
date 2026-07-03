@@ -55,8 +55,15 @@ enough samples means the rule is noise (candidate for demotion); a high rate
 means it catches things people fix. Deterministic and offline (no LLM, no
 network, no telemetry), and — like `analyze` — advisory only: it prints and
 never edits `.dwarpal.yml`. Flags: `--window N` (commits to replay, default
-200), `--min-samples M` (default 8), `--json`. This is a maintenance command,
-not part of the pre-commit path.
+200), `--min-samples M` (default 8), `--json`, `--apply`. This is a maintenance
+command, not part of the pre-commit path.
+
+`--apply` writes only **demotions** (a noisy `error` rule → `warn`) into the
+`rule_overrides` block of `.dwarpal.yml`, preserving your comments. It never
+auto-*promotes* a rule to hard-block on this fuzzy signal — promotions are
+surfaced for manual review only. The written overrides take effect immediately:
+`dwarpal check` reads `rule_overrides` and `dwarpal rules` annotates each
+overridden rule.
 
 ## `dwarpal explain <rule-id>`
 

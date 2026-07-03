@@ -60,7 +60,15 @@ architecture_rules:          # your own layering assertions (Go, go/ast)
     matches: "sql.Open|db.Query|db.Exec"    # regex over rendered call targets
     forbidden_outside: ["internal/repo/**"] # calls ALLOWED here, blocked elsewhere
     severity: error
+
+rule_overrides:              # reassign a rule's severity, keyed by "gate/rule_id"
+  "ai_patterns/no-sql-concat": "warn"   # error | warn | info
 ```
+
+`rule_overrides` reassigns any rule's severity (demoting a noisy `error` to
+`warn`, or promoting an advisory rule). Author it by hand, have your agent write
+it, or let [`dwarpal audit --apply`](cli.md) demote noisy rules for you based on
+your git history. `dwarpal rules` annotates every rule carrying an override.
 
 ## Modes
 

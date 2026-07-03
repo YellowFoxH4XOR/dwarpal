@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **`dwarpal audit --apply` + `rule_overrides`.** Audit can now act on its
+  signal: `--apply` writes safe **demotions** (a noisy `error` rule → `warn`)
+  into a new `rule_overrides` config key, preserving your comments. It never
+  auto-promotes a rule to hard-block on the fuzzy signal — promotions are
+  surfaced for manual review only. The engine applies `rule_overrides` before
+  the blocking decision (honored even in stop-on-first-block), so a demoted rule
+  stops blocking immediately; `dwarpal rules` annotates each override.
+
 - **`dwarpal rules test` — the rule set as a tested spec.** Every built-in
   `ai_patterns` rule now ships positive examples it must flag and negatives it
   must not; `rules test` verifies them and exits non-zero on any failure (CI-

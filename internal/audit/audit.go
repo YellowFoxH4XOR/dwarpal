@@ -53,6 +53,10 @@ type RuleStat struct {
 	ActedOn         int     `json:"acted_on"`
 	ActedOnRate     float64 `json:"acted_on_rate"`
 	Recommendation  string  `json:"recommendation,omitempty"`
+	// Demote is true only for a safe demotion (error → warn). Promotions are
+	// never auto-applied — recommending a hard-block on this fuzzy signal is the
+	// worst failure mode — so `--apply` acts on Demote alone.
+	Demote bool `json:"demote,omitempty"`
 }
 
 // flag is one rule firing on one added line in one historical commit — the unit
@@ -163,6 +167,7 @@ func aggregate(root string, flags []flag, opts Options) []RuleStat {
 		if a.samples > 0 {
 			rate = float64(a.hit) / float64(a.samples)
 		}
+		rec, demote := recommend(rate, a.samples, a.severity, opts)
 		stats = append(stats, RuleStat{
 			Gate:            parts[0],
 			RuleID:          parts[1],
@@ -170,7 +175,8 @@ func aggregate(root string, flags []flag, opts Options) []RuleStat {
 			Samples:         a.samples,
 			ActedOn:         a.hit,
 			ActedOnRate:     round2(rate),
-			Recommendation:  recommend(rate, a.samples, a.severity, opts),
+			Recommendation:  rec,
+			Demote:          demote,
 		})
 	}
 	sort.Slice(stats, func(i, j int) bool {
@@ -199,15 +205,15 @@ func actedOn(root string, fl flag, cache map[string]*string) bool {
 // recommend turns an acted-on rate into advice. It only ever *suggests*
 // promotion (review manually) — v1 never auto-promotes a rule to hard-block on
 // this fuzzy signal, which is the design's worst failure mode.
-func recommend(rate float64, samples int, severity string, opts Options) string {
+func recommend(rate float64, samples int, severity string, opts Options) (advice string, demote bool) {
 	if samples < opts.MinSamples {
-		return "" // too little signal
+		return "", false // too little signal
 	}
 	if rate <= opts.DemoteThreshold && severity == "error" {
-		return "demote to warn (rarely acted on)"
+		return "demote to warn (rarely acted on)", true
 	}
 	if rate >= opts.PromoteThreshold && severity != "error" {
-		return "review for promotion to error (often acted on)"
+		return "review for promotion to error (often acted on)", false
 	}
-	return ""
+	return "", false
 }

@@ -38,6 +38,10 @@ type Config struct {
 	Provenance       ProvenanceBlock `koanf:"provenance"`
 	Gates            GatesBlock      `koanf:"gates"`
 	ArchRules        []ArchRule      `koanf:"architecture_rules"`
+	// RuleOverrides reassigns a rule's severity, keyed by "gate/rule_id" (e.g.
+	// "ai_patterns/no-sql-concat": "warn"). Authored by hand, by an agent, or by
+	// `dwarpal audit --apply` from the measured acted-on rate.
+	RuleOverrides map[string]string `koanf:"rule_overrides"`
 }
 
 // ArchRule is one user-defined architecture assertion (PRD §5.3). Calls whose
@@ -201,6 +205,7 @@ var allowedKeys = map[string]bool{
 	"mode":                               true,
 	"stop_on_first_block":                true,
 	"architecture_rules":                 true,
+	"rule_overrides":                     true,
 	"provenance.branch_prefixes":         true,
 	"provenance.trailers":                true,
 	"provenance.apply_gates_to":          true,
@@ -263,9 +268,12 @@ func Load(root string) (Config, error) {
 func rejectUnknownKeys(k *koanf.Koanf) error {
 	var unknown []string
 	for _, key := range k.Keys() {
-		if !allowedKeys[key] {
-			unknown = append(unknown, key)
+		// rule_overrides is a map with dynamic "gate/rule_id" keys, so koanf
+		// flattens it to rule_overrides.<something>; allow the whole namespace.
+		if allowedKeys[key] || strings.HasPrefix(key, "rule_overrides.") {
+			continue
 		}
+		unknown = append(unknown, key)
 	}
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
@@ -298,6 +306,13 @@ func (c Config) validate() error {
 	for i, o := range b.Overrides {
 		if o.MaxLines < 0 || o.MaxFiles < 0 || o.MaxNewFiles < 0 {
 			return fmt.Errorf("diff_budget.overrides[%d]: budgets must not be negative", i)
+		}
+	}
+	for key, sev := range c.RuleOverrides {
+		switch sev {
+		case "error", "warn", "info":
+		default:
+			return fmt.Errorf("rule_overrides[%q]: invalid severity %q (want error|warn|info)", key, sev)
 		}
 	}
 	return nil

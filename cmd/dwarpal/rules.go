@@ -113,6 +113,9 @@ func runRules() error {
 			if disabled[id] {
 				state = "disabled"
 			}
+			if sev, ok := cfg.RuleOverrides["ai_patterns/"+id]; ok {
+				state += "  (severity override: " + sev + ")"
+			}
 			fmt.Printf("                           - %-40s %s\n", id, state)
 		}
 	}
