@@ -2,6 +2,18 @@
 
 ## v0.2.1 (unreleased)
 
+### Documentation
+
+- 25 rule pages (docs/rules/) — every finding's `docs_url` now resolves;
+  URLs filled centrally by the engine, `explain` shares the same mapping
+  (its hardcoded docs.dwarpal.dev links were dead — unregistered domain)
+- Full configuration reference, coverage recipes (7 stacks), integrations
+  (GitHub Actions, GitLab CI, pre-commit framework, Docker), and the
+  "why harnesses beat prompts" narrative
+- `.pre-commit-hooks.yaml` — pre-commit framework consumers can adopt
+  Dwarpal without leaving their hooks manager
+- README: brew `update`-before-`upgrade` note, documentation section
+
 - `provenance.heuristics`: configurable regex detection signal (4th fallback)
 - Override escape: `Dwarpal-Override:` commit trailer (range mode) /
   `DWARPAL_OVERRIDE` env (staged) approves skipping a rule per run

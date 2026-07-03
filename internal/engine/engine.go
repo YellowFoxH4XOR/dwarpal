@@ -71,6 +71,18 @@ type Options struct {
 	StopOnFirstBlock bool
 }
 
+// fillDocsURLs gives every finding a working documentation link. Gates may
+// set DocsURL themselves; the canonical gate/rule mapping fills the rest, so
+// no gate has to repeat it (and none can forget it).
+func fillDocsURLs(fs []finding.Finding) []finding.Finding {
+	for i := range fs {
+		if fs[i].DocsURL == "" {
+			fs[i].DocsURL = finding.DocsURL(fs[i].Gate, fs[i].RuleID)
+		}
+	}
+	return fs
+}
+
 // Run executes the gates against the diff and aggregates everything.
 func Run(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex) Result {
 	return RunWith(ctx, gates, d, idx, Options{})
@@ -91,7 +103,7 @@ func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, op
 			if err != nil {
 				res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
 			} else {
-				res.Findings = append(res.Findings, fs...)
+				res.Findings = append(res.Findings, fillDocsURLs(fs)...)
 			}
 			if res.Blocking() {
 				break
@@ -122,7 +134,7 @@ func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, op
 			res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: results[i].err})
 			continue
 		}
-		res.Findings = append(res.Findings, results[i].findings...)
+		res.Findings = append(res.Findings, fillDocsURLs(results[i].findings)...)
 	}
 	return res
 }

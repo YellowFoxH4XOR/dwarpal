@@ -55,7 +55,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 34. ✅ N% coverage on changed lines (default 70), lcov + cobertura + go-cover, auto-detected
 35. ✅ Warn-only when artifact absent; fail-closed when malformed
-36. ☐ Copy-paste coverage recipes for the top 6 stacks (docs)
+36. ✅ Coverage recipes — Go, Jest, Vitest, pytest, JaCoCo, SimpleCov, coverlet (docs/recipes/coverage.md)
 
 ## G. Gate 6 — Convention Drift (§5.2)
 
@@ -87,7 +87,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 50. ✅ Stable JSON schema with imperative `retry_hints` for the agent loop
 51. ✅ SARIF 2.1.0 (`--sarif`) for free GitHub PR annotation
 52. ✅ `--explain-for-agent` (alias of `--json`)
-53. ☐ Real documentation pages behind findings' `docs_url`
+53. ✅ docs_url — 25 rule pages (docs/rules/), URLs filled centrally by the engine; explain's dead docs.dwarpal.dev links replaced with the same canonical mapping
 
 ## L. Distribution & platform (§5.5)
 
@@ -98,8 +98,8 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 58. ✅ GitHub Releases via goreleaser (proven twice: v0.1.0, v0.1.1)
 59. ✅ Docker image — built & verified (45MB, ldflags version, mounted-repo check works, safe.directory hardening for Linux CI); registry publishing on release ☐ optional
 60. ✅ GitHub Action — verified live on PR #3: install → check --sarif → SARIF upload (dogfood workflow pins the PR head SHA)
-61. ☐ GitLab CI template
-62. ☐ pre-commit-framework hook definition
+61. ✅ GitLab CI template (docs/integrations/gitlab.md)
+62. ✅ pre-commit framework — .pre-commit-hooks.yaml + docs/integrations/pre-commit.md
 63. ☐ macOS codesign + notarization (the real Gatekeeper fix; needs Apple Developer ID)
 64. ✅ No telemetry, no network in default operation (stated in README)
 
@@ -122,7 +122,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ## O. Launch & community — G6 / M4 (§9, §10, §11)
 
-76. ☐ Docs site (rationale pages, config reference, "why harnesses beat prompts")
+76. ✅ Docs tree — index, full configuration reference, 25 rule pages, 4 integrations, recipes, the "why harnesses beat prompts" narrative (GitHub-rendered; a dwarpal.dev site can front it later by changing one constant)
 77. ☐ Show HN + r/ClaudeCode + r/cursor + r/ExperiencedDevs launch posts
 78. ☐ 3 recipe blog posts (Claude Code, Cursor, CI-only setups)
 79. ☐ Register dwarpal.dev / dwarpal.io + trademark search (§11 Q1)
@@ -134,7 +134,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ---
 
-**Score: 68 ✅ / 0 ◐ / 16 ☐ (84 items).**
-All engineering items: done. Remaining: notarization (63, needs Apple ID),
-platform chores (67 demand-deferred, 74, 75), docs (36, 53, 61, 62, 76), and
-the launch motion (77–80, 82–84).
+**Score: 73 ✅ / 0 ◐ / 11 ☐ (84 items).**
+All engineering and docs items: done. Remaining: notarization (63, needs
+Apple ID), platform chores (67 demand-deferred, 74, 75), and the launch
+motion (77–80, 82–84).
