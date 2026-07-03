@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **`dwarpal audit` — rule self-calibration from git history.** Replays recent
+  non-merge commits through the `ai_patterns` gate and measures, per rule, the
+  fraction of flagged lines a human later rewrote or removed (the "acted-on
+  rate", after BitsAI-CR / arXiv 2501.15134). Low rate = noise (recommends
+  demotion); high = signal. Deterministic and offline — no LLM, no network, no
+  telemetry — which is why a cloud reviewer can't replicate it on a local repo;
+  and, like `analyze`, advisory only (never edits `.dwarpal.yml`). Attacks the
+  #1 reason teams disable quality gates: alert fatigue. `--window`, `--json`.
 - **`dwarpal agent setup` now installs an Agent Skill.** Alongside the
   instruction block, it writes a portable `SKILL.md` teaching the full Dwarpal
   workflow (pre-flight check→fix loop, authoring `.dwarpal.yml` from `dwarpal

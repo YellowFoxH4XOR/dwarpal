@@ -28,6 +28,25 @@ Run the gate pipeline. Default target is the staged diff.
 List the active gates and rules for this repo (from the current config) and
 where each setting comes from.
 
+## `dwarpal analyze`
+
+Measure the repo (conventions, a history-fitted diff budget, detected coverage
+artifacts/security tools/branch prefixes/layering) and print the facts an agent
+uses to author `.dwarpal.yml`. Deterministic and offline; `--json` for agents;
+writes no config or source. See [agent-config](agent-config.md).
+
+## `dwarpal audit`
+
+Self-calibrate rules against git history. Replays recent non-merge commits
+through the `ai_patterns` gate and reports, per rule, the **acted-on rate** —
+the fraction of flagged lines a human later rewrote or removed. A low rate over
+enough samples means the rule is noise (candidate for demotion); a high rate
+means it catches things people fix. Deterministic and offline (no LLM, no
+network, no telemetry), and — like `analyze` — advisory only: it prints and
+never edits `.dwarpal.yml`. Flags: `--window N` (commits to replay, default
+200), `--min-samples M` (default 8), `--json`. This is a maintenance command,
+not part of the pre-commit path.
+
 ## `dwarpal explain <rule-id>`
 
 Why a rule exists and how to fix a finding it raised. Accepts the bare

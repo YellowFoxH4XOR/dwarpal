@@ -1,0 +1,39 @@
+# audit: self-calibration over git history — deterministic, offline, print-only.
+# Fixtures use a broad-except (no-broad-catch, warn severity) so this very
+# testdata file doesn't trip Dwarpal's own error gates when committed.
+exec git init
+exec git add seed.txt
+exec git commit -m seed
+
+# two commits (each with a parent) that introduce a flagged line
+cp bad.py app.py
+exec git add app.py
+exec git commit -m 'add broad except'
+cp bad.py app2.py
+exec git add app2.py
+exec git commit -m 'another broad except'
+
+# human view: a table with the rule and the advisory footer (never mutates config)
+exec dwarpal audit --min-samples 1
+stdout 'rule self-calibration'
+stdout 'no-broad-catch'
+stdout 'ACTED-ON'
+stdout 'Advisory only'
+
+# --json: machine-readable per-rule stats
+exec dwarpal audit --min-samples 1 --json
+stdout '"rule_id": "no-broad-catch"'
+stdout '"acted_on_rate"'
+stdout '"commits_scanned"'
+
+# audit is advisory: it must not create or touch .dwarpal.yml
+! exists .dwarpal.yml
+
+-- seed.txt --
+seed
+-- bad.py --
+def run():
+    try:
+        risky()
+    except:
+        pass
