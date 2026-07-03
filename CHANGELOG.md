@@ -2,6 +2,11 @@
 
 ## v0.2.1 (unreleased)
 
+- **BREAKING (behavior)**: `provenance.apply_gates_to` now defaults to
+  `all-commits` — every commit is gated, regardless of author. Set
+  `apply_gates_to: agent-only` to restore the old human-exempt behavior.
+  Configs that already set the key are unaffected.
+
 ### Documentation
 
 - 25 rule pages (docs/rules/) — every finding's `docs_url` now resolves;
