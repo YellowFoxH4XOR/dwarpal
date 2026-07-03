@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.5.1 — 2026-07-03
 
 - **macOS: `brew install --cask` no longer trips Gatekeeper.** The cask now
   strips `com.apple.quarantine` on install (GoReleaser's documented free
