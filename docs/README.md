@@ -17,6 +17,8 @@ quickstart; this tree is the reference.
 - **Recipes**
   - [Coverage artifacts per stack](recipes/coverage.md) — feeding the
     diff-coverage gate from Go, Jest/Vitest, pytest, JaCoCo, SimpleCov, coverlet
+- **[Agent-authored config](agent-config.md)** — let your coding agent write and
+  maintain `.dwarpal.yml` from `dwarpal analyze`, instead of hand-tuning YAML
 - **Agents** — `dwarpal agent setup <tool>` wires the pre-flight loop
   - [Claude Code](integrations/claude-code.md) (instruction block + PreToolUse hook)
   - [Codex](integrations/codex.md) · [OpenCode](integrations/opencode.md) · [Pi](integrations/pi.md) (AGENTS.md blocks)
