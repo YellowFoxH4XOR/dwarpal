@@ -57,13 +57,24 @@ gates:
 `
 
 func newInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var learn bool
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up Dwarpal in this repo: write config and install git hooks",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if learn {
+				// --learn prints the analysis first, then does the normal init.
+				// The agent (or you) then edits .dwarpal.yml to match the facts.
+				if err := runAnalyze(false); err != nil {
+					return err
+				}
+				fmt.Println()
+			}
 			return runInit()
 		},
 	}
+	cmd.Flags().BoolVar(&learn, "learn", false, "print `dwarpal analyze` facts before init, to guide config authoring")
+	return cmd
 }
 
 func runInit() error {

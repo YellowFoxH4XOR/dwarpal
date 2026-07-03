@@ -40,7 +40,7 @@ func run() int {
 	}
 	root.AddCommand(
 		newCheckCmd(), newInitCmd(), newHookCmd(), newRulesCmd(), newTaskCmd(),
-		newExplainCmd(), newDoctorCmd(), newBypassCmd(), newFeedbackCmd(), newAgentCmd(), newVersionCmd(),
+		newExplainCmd(), newDoctorCmd(), newBypassCmd(), newFeedbackCmd(), newAgentCmd(), newAnalyzeCmd(), newVersionCmd(),
 	)
 
 	if err := root.Execute(); err != nil {
