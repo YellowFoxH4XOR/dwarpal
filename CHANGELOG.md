@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.1
+
+- **Fixed**: `install.sh` strips macOS's `com.apple.quarantine` attribute
+  before first run — Gatekeeper SIGKILLs (and removes) unsigned quarantined
+  binaries on Apple Silicon
+- README rewritten: install paths (Homebrew cask + quarantine note, install
+  script, `go install`), the 8-gate table, trust promises
+- goreleaser cask commits now authored as `YellowFoxH4XOR
+  <yellowfoxh4xor@gmail.com>` instead of the goreleaser bot default
+
 ## v0.1.0 (release hardening)
 
 - **Fixed**: pre-push verification no longer blocks merge commits (e.g. GitHub

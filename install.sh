@@ -103,6 +103,13 @@ DEST="${INSTALL_DIR}/${BIN_NAME}"
 cp "$SRC_BIN" "$DEST"
 chmod +x "$DEST"
 
+# macOS Gatekeeper: curl-downloaded files carry com.apple.quarantine, and an
+# unsigned quarantined binary is SIGKILLed (and removed) on first execution.
+# Strip the attribute BEFORE the first run. Harmless no-op if absent.
+if [ "$OS" = "darwin" ] && command -v xattr >/dev/null 2>&1; then
+  xattr -d com.apple.quarantine "$DEST" 2>/dev/null || true
+fi
+
 # Verify the binary runs.
 if ! "$DEST" version >/dev/null 2>&1; then
   fail "installed binary failed to run: ${DEST}"
