@@ -115,6 +115,11 @@ No telemetry, ever. No network calls in default operation — the only component
 that can make one is the opt-in intent gate, and only to the provider you
 configure. Your diff never leaves your machine otherwise.
 
+## Contributing
+
+DCO, not a CLA — sign off your commits (`git commit -s`). See
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
