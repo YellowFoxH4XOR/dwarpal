@@ -148,3 +148,16 @@ func TestEntropy_URLAndPathNotFlagged(t *testing.T) {
 		t.Fatalf("URL/path tokens must not be flagged, got %+v", fs)
 	}
 }
+
+// Regression: long camelCase identifiers scored above the entropy threshold
+// and BLOCKED a real commit (TestCache_WarmRebuildPreservesShingles, 4.2
+// bits/char). Digit-less tokens are identifiers, not secrets.
+func TestEntropy_LongIdentifiersNotFlagged(t *testing.T) {
+	f := gitio.FileChange{Path: "cache_test.go", AddedLines: []gitio.Line{
+		{Number: 11, Text: "func TestCache_WarmRebuildPreservesShingles(t *testing.T) {"},
+		{Number: 12, Text: "ConventionsOnlyExtractsNothingButImports := true"},
+	}}
+	if fs := EntropyFindings(f); len(fs) != 0 {
+		t.Fatalf("identifiers must not be flagged, got %+v", fs)
+	}
+}

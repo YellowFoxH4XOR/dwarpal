@@ -76,7 +76,7 @@ func Parse(path string, src []byte) (*Tree, error) {
 		return nil, fmt.Errorf("astengine: no grammar for %s", path)
 	}
 	lang := entry.Language()
-	bound, err := grammars.ParseFile(path, src)
+	bound, err := parseFileBounded(entry, path, src)
 	if err != nil {
 		return nil, fmt.Errorf("astengine: parsing %s: %w", path, err)
 	}
@@ -95,6 +95,38 @@ func Parse(path string, src []byte) (*Tree, error) {
 		return nil, fmt.Errorf("astengine: %s failed to parse", path)
 	}
 	return &Tree{bound: bound, lang: lang, grammar: entry.Name, src: src, Partial: root.HasError()}, nil
+}
+
+// Parse guards: real-world repos contain files the GLR parser grinds on for
+// seconds (observed live: a 24KB TS file still parsing after 30s hung
+// `dwarpal check` on a 2,167-file repo). Every parse gets a hard timeout and
+// oversized files skip straight to the heuristic tier — the gate must never
+// hang a commit.
+const (
+	maxParseBytes    = 512 * 1024 // beyond this, heuristics are the right tool
+	parseTimeoutUsec = 300_000    // 300ms per file
+)
+
+// parseFileBounded replicates grammars.ParseFile with the timeout applied —
+// the convenience wrapper exposes no parser handle to set it on.
+func parseFileBounded(entry *grammars.LangEntry, path string, src []byte) (*ts.BoundTree, error) {
+	if len(src) > maxParseBytes {
+		return nil, fmt.Errorf("%s: %d bytes exceeds the %dKB parse cap", path, len(src), maxParseBytes/1024)
+	}
+	lang := entry.Language()
+	parser := ts.NewParser(lang)
+	parser.SetTimeoutMicros(parseTimeoutUsec)
+	var tree *ts.Tree
+	var err error
+	if entry.TokenSourceFactory != nil {
+		tree, err = parser.ParseWithTokenSource(src, entry.TokenSourceFactory(src, lang))
+	} else {
+		tree, err = parser.Parse(src)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ts.Bind(tree), nil
 }
 
 // Capture is one query capture: its capture name, source text, and 1-indexed

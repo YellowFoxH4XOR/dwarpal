@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed: `dwarpal check` could hang indefinitely** on large real-world
+  repos (observed: 2,167-file TS repo, 30s+ and climbing) — the GLR parser
+  ground on real files while the default-on drift gate built the full index
+  every check, even with nothing staged. Four layers of fix:
+  - empty diffs short-circuit before any index work
+  - per-file parse timeout (300ms) + 512KB size cap, heuristic fallback
+  - whole-index deadline (5s), heuristic tier past it
+  - the index is skipped entirely when the diff touches no indexable language
+- **Index disk cache (#67)** (`.dwarpal/cache/`, gob, atomic writes,
+  size+mtime invalidation): the 2,167-file repo now checks in **0.86s warm**
+  (was 11s every time); drift-only configs (duplicate off) skip function
+  extraction entirely — **0.94s cold**, 1.8MB cache
+
 ## v0.4.0
 
 - **`dwarpal agent setup <claude-code|codex|opencode|pi>`** — wires the gate

@@ -13,6 +13,7 @@ import (
 	"go/ast"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/astengine"
 	"go/parser"
@@ -78,6 +79,14 @@ var skipDir = map[string]bool{
 // Parse errors on individual files are skipped (a syntactically broken file
 // should not fail the whole index).
 func Build(root string) (*Index, error) {
+	return BuildFor(root, true)
+}
+
+// BuildFor builds the index with an explicit scope. needFuncs=false skips
+// function extraction and shingling entirely — the drift gate only consumes
+// the convention fingerprint, and on a 2,167-file TS repo the shingle work
+// (plus its 267MB cache) was pure waste when duplicate detection is off.
+func BuildFor(root string, needFuncs bool) (*Index, error) {
 	var paths []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -107,21 +116,52 @@ func Build(root string) (*Index, error) {
 	if workers < 1 {
 		workers = 1
 	}
+	// Whole-index deadline: per-file parse timeouts bound each file, but a
+	// large repo of slow files could still sum to minutes. Past the deadline,
+	// remaining files are indexed with the fast heuristic extractors instead
+	// of tree-sitter — a degraded index beats a hung commit.
+	deadline := time.Now().Add(indexDeadline)
+
+	// Disk cache (#67): unchanged files (size+mtime match) skip parsing —
+	// steady-state checks on large repos drop from seconds to milliseconds.
+	cache := loadCache(root, needFuncs)
+	fresh := make([]map[string]cacheEntry, workers)
+
 	jobs := make(chan string)
 	locals := make([]*Index, workers)
 	var wg sync.WaitGroup
 	for w := 0; w < workers; w++ {
 		local := &Index{}
 		locals[w] = local
+		mine := map[string]cacheEntry{}
+		fresh[w] = mine
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for rel := range jobs {
-				src, err := os.ReadFile(filepath.Join(root, rel))
+				abs := filepath.Join(root, rel)
+				st, err := os.Stat(abs)
 				if err != nil {
 					continue
 				}
-				local.addFile(rel, src)
+				if e, ok := cache.Entries[rel]; ok && e.Size == st.Size() && e.MTime == st.ModTime().UnixNano() {
+					funcs, conv := fromEntry(rel, e)
+					local.Funcs = append(local.Funcs, funcs...)
+					local.Conventions.merge(conv)
+					mine[rel] = e
+					continue
+				}
+				src, err := os.ReadFile(abs)
+				if err != nil {
+					continue
+				}
+				// Index into a scratch so this file's contribution is isolated
+				// for caching, then fold it into the worker-local index.
+				scratch := &Index{}
+				scratch.addFileBudgeted(rel, src, needFuncs, time.Now().Before(deadline))
+				local.Funcs = append(local.Funcs, scratch.Funcs...)
+				local.Conventions.merge(scratch.Conventions)
+				mine[rel] = toEntry(st.Size(), st.ModTime().UnixNano(), scratch.Funcs, scratch.Conventions)
 			}
 		}()
 	}
@@ -132,10 +172,15 @@ func Build(root string) (*Index, error) {
 	wg.Wait()
 
 	idx := &Index{built: true}
-	for _, local := range locals {
+	merged := cacheData{Entries: map[string]cacheEntry{}}
+	for w, local := range locals {
 		idx.Funcs = append(idx.Funcs, local.Funcs...)
 		idx.Conventions.merge(local.Conventions)
+		for rel, e := range fresh[w] {
+			merged.Entries[rel] = e
+		}
 	}
+	saveCache(root, merged, needFuncs)
 	return idx, nil
 }
 
@@ -187,6 +232,44 @@ func astFirst(fallback Extractor) Extractor {
 			return funcs
 		}
 		return fallback(rel, src)
+	}
+}
+
+// indexDeadline caps total tree-sitter time for one Build. Measured: synthetic
+// corpora index in <1s, but real-world TS (observed live) can take 300ms+ per
+// file even under the per-file timeout.
+const indexDeadline = 5 * time.Second
+
+// addFileBudgeted indexes one file. needFuncs=false skips function
+// extraction (conventions only); astOK=false forces the heuristic tier
+// (used once the whole-index deadline has passed).
+func (idx *Index) addFileBudgeted(rel string, src []byte, needFuncs, astOK bool) {
+	if !needFuncs && !strings.HasSuffix(rel, ".go") {
+		// Conventions-only for non-Go: the import fingerprint needs a line
+		// scan, not a parse — no tree-sitter cost at all.
+		idx.countImportsFromTree(nil, rel, src)
+		return
+	}
+	if !astOK && !strings.HasSuffix(rel, ".go") {
+		if ex := heuristicExtractorFor(rel); ex != nil {
+			idx.Funcs = append(idx.Funcs, ex(rel, src)...)
+		}
+		idx.countImportsFromTree(nil, rel, src) // line-scan path
+		return
+	}
+	idx.addFile(rel, src)
+}
+
+// heuristicExtractorFor returns the non-AST extractor for a path.
+func heuristicExtractorFor(path string) Extractor {
+	switch {
+	case strings.HasSuffix(path, ".ts"), strings.HasSuffix(path, ".tsx"),
+		strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".jsx"):
+		return FunctionsInTSSource
+	case strings.HasSuffix(path, ".py"):
+		return FunctionsInPythonSource
+	default:
+		return nil
 	}
 }
 
