@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -10,13 +13,76 @@ import (
 )
 
 func newRulesCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "rules",
 		Short: "List the active gates and rules and their source",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runRules()
 		},
 	}
+	cmd.AddCommand(newRulesTestCmd())
+	return cmd
+}
+
+func newRulesTestCmd() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "test",
+		Short: "Verify each built-in rule against its positive/negative examples",
+		Long: "test checks that every built-in ai_patterns rule flags the code it should and " +
+			"stays silent on the code it shouldn't — the rule set as a tested spec. A negative " +
+			"example that wrongly matches means a rule is too broad (a false-positive-budget risk); " +
+			"a rule with no examples is an untested gap. Exits non-zero if any rule fails, so it " +
+			"can gate rule changes in CI.",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runRulesTest(jsonOut)
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit the results as JSON")
+	return cmd
+}
+
+func runRulesTest(jsonOut bool) error {
+	checks := aipatterns.CheckExamples()
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(checks); err != nil {
+			return &exitError{code: 2, msg: err.Error()}
+		}
+	} else {
+		printRulesTest(checks)
+	}
+
+	for _, c := range checks {
+		if !c.OK() {
+			return &exitError{code: 1, msg: "some rules failed their example tests"}
+		}
+	}
+	return nil
+}
+
+func printRulesTest(checks []aipatterns.RuleCheck) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(w, "RULE\tSEVERITY\t+EX\t-EX\tSTATUS")
+	passed := 0
+	for _, c := range checks {
+		status := "pass"
+		if c.OK() {
+			passed++
+		} else {
+			status = "FAIL"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\n", c.RuleID, c.Severity, c.Positives, c.Negatives, status)
+	}
+	w.Flush()
+	for _, c := range checks {
+		for _, f := range c.Failures {
+			fmt.Printf("  • %s: %s\n", c.RuleID, f)
+		}
+	}
+	fmt.Printf("\n%d/%d rules pass their example tests.\n", passed, len(checks))
 }
 
 // runRules prints the gates that would run given the current config, so a user

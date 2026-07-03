@@ -28,6 +28,17 @@ Run the gate pipeline. Default target is the staged diff.
 List the active gates and rules for this repo (from the current config) and
 where each setting comes from.
 
+### `dwarpal rules test`
+
+Verify every built-in `ai_patterns` rule against its own positive/negative
+examples: each positive must flag, each negative must stay silent, and a rule
+with no examples is an untested gap. This makes the rule set a tested spec — a
+regression guard on the reviewer's judgment and a false-positive-budget defense
+(a negative that wrongly matches means the rule is too broad). Exits non-zero on
+any failure, so it can gate rule changes in CI. `--json` for structured output.
+Pairs with `dwarpal audit`: `rules test` checks a rule's *definition* against
+canonical examples; `audit` checks its *precision* against your real history.
+
 ## `dwarpal analyze`
 
 Measure the repo (conventions, a history-fitted diff budget, detected coverage

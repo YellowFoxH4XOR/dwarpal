@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **`dwarpal rules test` — the rule set as a tested spec.** Every built-in
+  `ai_patterns` rule now ships positive examples it must flag and negatives it
+  must not; `rules test` verifies them and exits non-zero on any failure (CI-
+  gateable). A negative that wrongly matches means a rule is too broad — a
+  false-positive-budget defense at authoring time, complementing `audit`'s
+  precision check against real history. Building it immediately caught a wrong
+  example and surfaced a real gap: `no-sql-concat` misses f-string SQL
+  interpolation (`f"SELECT {x}"`). Rooted in the rule-conformance literature
+  (rules as versioned, example-tested artifacts).
 - **`dwarpal audit` — rule self-calibration from git history.** Replays recent
   non-merge commits through the `ai_patterns` gate and measures, per rule, the
   fraction of flagged lines a human later rewrote or removed (the "acted-on
