@@ -1,0 +1,19 @@
+# rules test: every built-in rule is verified against its own examples — the
+# rule set as a tested spec.
+exec git init
+
+# human view: a table with every rule and a pass count
+exec dwarpal rules test
+stdout 'no-hardcoded-secrets/aws-key'
+stdout 'STATUS'
+stdout 'rules pass their example tests'
+
+# --json: machine-readable per-rule results with example counts
+exec dwarpal rules test --json
+stdout '"rule_id": "no-broad-catch"'
+stdout '"positives"'
+stdout '"negatives"'
+
+# it lives under `rules` as a subcommand; `rules` itself still lists rules
+exec dwarpal rules
+stdout 'ai_patterns'
