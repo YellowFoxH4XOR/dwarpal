@@ -27,14 +27,52 @@ import (
 // llmAPIKeyEnv is where the intent gate reads its provider key — never config.
 const llmAPIKeyEnv = "DWARPAL_LLM_API_KEY"
 
+// overrideEnv lists rule IDs (comma-separated) a human has approved skipping
+// for this run — the staged-mode counterpart of the Dwarpal-Override trailer
+// (at pre-commit time no commit message exists to carry a trailer).
+const overrideEnv = "DWARPAL_OVERRIDE"
+
+// overrideTrailer is the commit-message trailer that approves skipping a rule
+// for the commits that carry it (PRD Gate 3: "unless the commit ... carries an
+// approved override trailer"). Only meaningful in --range mode.
+const overrideTrailer = "Dwarpal-Override:"
+
+// collectOverrides gathers approved rule overrides from the env var and, when
+// a range is being checked, from Dwarpal-Override trailers in that range's
+// commit messages.
+func collectOverrides(root, rangeArg string) []string {
+	var out []string
+	for _, id := range strings.Split(os.Getenv(overrideEnv), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			out = append(out, id)
+		}
+	}
+	if rangeArg != "" {
+		cmd := exec.Command("git", "log", "--format=%B", rangeArg)
+		cmd.Dir = root
+		if msgs, err := cmd.Output(); err == nil {
+			for _, line := range strings.Split(string(msgs), "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, overrideTrailer) {
+					if id := strings.TrimSpace(strings.TrimPrefix(line, overrideTrailer)); id != "" {
+						out = append(out, id)
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 // buildGates assembles the gate pipeline for a run, applying the provenance
 // filter. Branch policy always participates (it self-no-ops for human commits);
 // the content gates run only when this commit is in scope for gating —
 // i.e. all-commits mode, or agent-only mode and the change is agent-authored.
 // This is the R2 mitigation: human commits stay untouched by default.
-func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
+func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
 	branch := currentBranch(root)
 	prov := provenance.New(cfg.Provenance.BranchPrefixes, cfg.Provenance.Trailers).
+		WithHeuristics(cfg.Provenance.Heuristics).
 		Detect(branch, "") // no commit message at pre-commit time
 
 	applyContent := cfg.Provenance.ApplyGatesTo == config.ApplyAllCommits || prov.IsAgent
@@ -51,7 +89,10 @@ func buildGates(root string, cfg config.Config) ([]engine.Gate, provenance.Prove
 
 	gates = append(gates, diffbudget.New(cfg.Gates.DiffBudget))
 	if cfg.Gates.AIPatterns.Enabled {
-		gates = append(gates, aipatterns.New(root, cfg.Gates.AIPatterns.DisableRules))
+		// Approved overrides (trailer/env) skip their rules for this run only —
+		// unlike disable_rules, they are per-commit escapes, not policy.
+		disables := append(append([]string{}, cfg.Gates.AIPatterns.DisableRules...), overrides...)
+		gates = append(gates, aipatterns.New(root, disables))
 	}
 	// Scope reads the declared task manifest when present; absent, it is
 	// warn-only unless the config requires a manifest. The manifest's task id

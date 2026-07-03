@@ -63,6 +63,10 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, idx engine.RepoIndex) ([]fi
 		// Import-style dimension (tree-sitter-ast-engine change, D6): any
 		// supported language, before the Go-only function checks below.
 		findings = append(findings, g.importStyleFindings(conv, f)...)
+		// Error-idiom dimension (#37): Go only.
+		if strings.HasSuffix(f.Path, ".go") {
+			findings = append(findings, g.errorIdiomFindings(conv, f)...)
+		}
 
 		if !goBaseline || !strings.HasSuffix(f.Path, ".go") || len(f.AddedLines) == 0 {
 			continue
@@ -133,6 +137,29 @@ func (g *Gate) importStyleFindings(conv repoindex.Conventions, f gitio.FileChang
 			"import-style",
 			fmt.Sprintf("%s import in a repo where %.0f%% of imports are %s", form, share*100, dominant),
 			fmt.Sprintf("use the repo's dominant %s import form", dominant)))
+	}
+	return out
+}
+
+// errorIdiomFindings flags added Go error-handling lines whose idiom disagrees
+// with a strong repo majority (>= 80%). A repo that consistently wraps errors
+// gets told about a bare `return err`; a panic-free repo gets told about a new
+// panic. Info severity — idioms are conventions.
+func (g *Gate) errorIdiomFindings(conv repoindex.Conventions, f gitio.FileChange) []finding.Finding {
+	dominant, share := conv.DominantErrorIdiom()
+	if dominant == "" || share < 0.8 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, ln := range f.AddedLines {
+		idiom := repoindex.ClassifyErrorIdiomLine(ln.Text)
+		if idiom == "" || idiom == dominant {
+			continue
+		}
+		out = append(out, g.finding(f.Path, ln.Number,
+			"error-idiom",
+			fmt.Sprintf("%s error handling in a repo where %.0f%% of error handling uses %s", idiom, share*100, dominant),
+			fmt.Sprintf("follow the repo's dominant %s idiom", dominant)))
 	}
 	return out
 }

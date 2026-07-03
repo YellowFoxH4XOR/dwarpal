@@ -64,7 +64,7 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string) error {
 		return &exitError{code: 2, msg: err.Error()}
 	}
 
-	gates, prov, idx := buildGates(root, cfg)
+	gates, prov, idx := buildGates(root, cfg, collectOverrides(root, rangeArg))
 	res := engine.RunWith(context.Background(), gates, diff, idx,
 		engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
 

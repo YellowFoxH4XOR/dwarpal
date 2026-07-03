@@ -11,6 +11,7 @@ package engine
 
 import (
 	"context"
+	"sync"
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
@@ -76,18 +77,52 @@ func Run(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex) Result
 }
 
 // RunWith executes the gates with explicit options.
+//
+// In the default report-everything mode gates run CONCURRENTLY (they only read
+// the diff, the index, and the work tree) and their results are folded back in
+// gate order, so output stays deterministic regardless of completion order.
+// StopOnFirstBlock forces sequential execution — its whole point is that later
+// gates never run after a block.
 func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, opts Options) Result {
+	if opts.StopOnFirstBlock {
+		var res Result
+		for _, g := range gates {
+			fs, err := g.Run(ctx, d, idx)
+			if err != nil {
+				res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
+			} else {
+				res.Findings = append(res.Findings, fs...)
+			}
+			if res.Blocking() {
+				break
+			}
+		}
+		return res
+	}
+
+	type gateResult struct {
+		findings []finding.Finding
+		err      error
+	}
+	results := make([]gateResult, len(gates))
+	var wg sync.WaitGroup
+	for i, g := range gates {
+		wg.Add(1)
+		go func(i int, g Gate) {
+			defer wg.Done()
+			fs, err := g.Run(ctx, d, idx)
+			results[i] = gateResult{findings: fs, err: err}
+		}(i, g)
+	}
+	wg.Wait()
+
 	var res Result
-	for _, g := range gates {
-		fs, err := g.Run(ctx, d, idx)
-		if err != nil {
-			res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
-		} else {
-			res.Findings = append(res.Findings, fs...)
+	for i, g := range gates {
+		if results[i].err != nil {
+			res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: results[i].err})
+			continue
 		}
-		if opts.StopOnFirstBlock && res.Blocking() {
-			break
-		}
+		res.Findings = append(res.Findings, results[i].findings...)
 	}
 	return res
 }

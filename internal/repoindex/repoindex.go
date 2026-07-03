@@ -195,6 +195,7 @@ func astFirst(fallback Extractor) Extractor {
 func (idx *Index) addFile(rel string, src []byte) {
 	if strings.HasSuffix(rel, ".go") {
 		indexFile(idx, rel, src) // functions + conventions
+		idx.countErrorIdioms(src)
 		return
 	}
 	// Parse once; share the tree between function extraction and import

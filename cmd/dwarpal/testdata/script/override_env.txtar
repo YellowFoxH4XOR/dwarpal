@@ -1,0 +1,13 @@
+# gate-ai-patterns (#22): DWARPAL_OVERRIDE approves skipping a rule for one run
+# (the staged-mode counterpart of the Dwarpal-Override commit trailer).
+exec git init
+exec git add .
+! exec dwarpal check
+stdout 'lint/type suppression'
+
+env DWARPAL_OVERRIDE=no-new-lint-suppressions
+exec dwarpal check
+stdout 'no findings'
+
+-- code.go --
+package p // nolint

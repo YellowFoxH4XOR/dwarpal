@@ -57,3 +57,27 @@ func TestRunWith_StopOnFirstBlock(t *testing.T) {
 		t.Fatalf("want one finding, got %d", len(res.Findings))
 	}
 }
+
+// Parallel execution must preserve gate-order determinism in the output.
+func TestRun_ParallelPreservesOrder(t *testing.T) {
+	var gates []Gate
+	flags := make([]bool, 8)
+	for i := 0; i < 8; i++ {
+		gates = append(gates, stubGate{
+			id:  string(rune('a' + i)),
+			out: block(string(rune('a' + i))),
+			ran: &flags[i],
+		})
+	}
+	for run := 0; run < 5; run++ {
+		res := Run(context.Background(), gates, &gitio.Diff{}, NoIndex{})
+		if len(res.Findings) != 8 {
+			t.Fatalf("want 8 findings, got %d", len(res.Findings))
+		}
+		for i, f := range res.Findings {
+			if f.Gate != string(rune('a'+i)) {
+				t.Fatalf("run %d: order broken at %d: %s", run, i, f.Gate)
+			}
+		}
+	}
+}

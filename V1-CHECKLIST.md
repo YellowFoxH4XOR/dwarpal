@@ -26,7 +26,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 ## C. Gate 2 — Provenance & Branch Policy (§5.2)
 
 15. ✅ Detection: `AGENTGATE_AGENT` env → `Co-Authored-By` trailers → branch prefix, in that order
-16. ☐ Configurable detection heuristics (the fourth, fallback signal)
+16. ✅ Configurable detection heuristics — `provenance.heuristics` regexes vs branch/message (validated at config load)
 17. ✅ Block agent commits to protected branches (`main`, `release/*` globs)
 18. ✅ `apply_gates_to: agent-only | all-commits` (human commits untouched by default)
 19. ✅ Attach provenance as git note (refs/notes/dwarpal-provenance) on passing agent checks
@@ -35,7 +35,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 20. ✅ Rules-as-data pack, per-rule disable via config
 21. ✅ `no-new-lint-suppressions` (eslint-disable / noqa / nolint / ts-ignore / pragma)
-22. ☐ Approved-override-trailer escape for suppressions
+22. ✅ Override escape — `Dwarpal-Override:` commit trailer (--range mode) / `DWARPAL_OVERRIDE` env (staged mode)
 23. ✅ `no-hardcoded-secrets` — key shapes + private-key headers + Shannon-entropy tier (URL/path false positives excluded)
 24. ✅ `no-sql-concat` — AST-precise for TS/JS/Python (template-literal/f-string interpolation, `+` concat over syntax nodes); Go + other languages via the regex heuristic. Package-context resolution stays future work
 25. ✅ `no-broad-catch` — AST-precise for TS/JS/Python (catch/except-clause body analysis); Go + others via regex heuristic
@@ -59,7 +59,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ## G. Gate 6 — Convention Drift (§5.2)
 
-37. ◐ Repo fingerprint — naming case + function size (Go) ✅; import-style dimension (Go/TS/JS/Python) ✅; error-idiom dimension ☐
+37. ✅ Repo fingerprint — naming case + function size (Go), import-style (Go/TS/JS/Python), error-idiom (Go: wrap/bare/panic)
 38. ✅ Ships `severity: info` (advisory) by default
 
 ## H. Gate 7 — Intent Verification (§5.2)
@@ -109,7 +109,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 66. ✅ Diff-first analysis (numstat + zero-context added-line parsing)
 67. ☐ Incremental repo-index cache — **data-demoted**: eager build measured at ~150ms/140k LOC; only matters >1M LOC
 68. ✅ Benchmarked: 140k-LOC index in ~150ms (13× headroom); 1.8M LOC in 2.4s; e2e check 42ms (bench kept in repo, BENCH_CORPUS-gated)
-69. ☐ Parallel gate execution (engine is sequential; fine at current gate cost)
+69. ✅ Parallel gate execution — concurrent gates, deterministic gate-order output; sequential under stop_on_first_block
 70. ✅ Bypass resistance: pre-commit marker + pre-push verification, merge-commit-aware
 
 ## N. Repo & process
@@ -127,14 +127,14 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 78. ☐ 3 recipe blog posts (Claude Code, Cursor, CI-only setups)
 79. ☐ Register dwarpal.dev / dwarpal.io + trademark search (§11 Q1)
 80. ☐ CLA vs DCO decision for contributions (§11 Q5)
-81. ☐ `dwarpal feedback` opt-in false-positive reporting (§9 metrics)
+81. ✅ `dwarpal feedback <rule> --reason` — local-only log + prefilled issue URL (no-telemetry promise kept)
 82. ☐ Design-partner outreach → 3 LOIs from 50+ eng companies on ci_strict (§9)
 83. ☐ Next language grammar by community demand — Rust or Java (M4)
 84. ☐ MCP pre-flight server evaluation for v1.x (§11 Q4)
 
 ---
 
-**Score: 63 ✅ / 1 ◐ / 20 ☐ (84 items).**
-Functional core + distribution + in-spec gaps + multi-language tree-sitter
-AST: done. Remaining: notarization (63), small stragglers (16, 22, 37's
-error-idiom), docs (36, 53, 61, 62, 76), and the launch motion (77–84).
+**Score: 68 ✅ / 0 ◐ / 16 ☐ (84 items).**
+All engineering items: done. Remaining: notarization (63, needs Apple ID),
+platform chores (67 demand-deferred, 74, 75), docs (36, 53, 61, 62, 76), and
+the launch motion (77–80, 82–84).

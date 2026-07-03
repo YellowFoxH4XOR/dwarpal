@@ -1,6 +1,17 @@
 # Changelog
 
-## v0.2.0 (unreleased)
+## v0.2.1 (unreleased)
+
+- `provenance.heuristics`: configurable regex detection signal (4th fallback)
+- Override escape: `Dwarpal-Override:` commit trailer (range mode) /
+  `DWARPAL_OVERRIDE` env (staged) approves skipping a rule per run
+- Drift gains the error-idiom dimension (Go: wrap vs bare vs panic, >=80% rule)
+- Engine runs gates concurrently (deterministic output order preserved;
+  sequential under stop_on_first_block)
+- `dwarpal feedback <rule> --reason`: local-only false-positive log +
+  prefilled issue URL — nothing is ever sent automatically
+
+## v0.2.0
 
 ### Tree-sitter AST engine (pure Go, CGO-free)
 
