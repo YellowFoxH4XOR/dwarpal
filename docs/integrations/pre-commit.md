@@ -28,3 +28,14 @@ the hook for the `pre-push` stage:
 Native `dwarpal init` hooks remain the fuller experience (marker plumbing,
 one-shot bypass consumption); the framework definition exists so adopting
 Dwarpal doesn't force a hooks-manager migration.
+
+
+## Windows
+
+Dwarpal's hooks are POSIX `sh` scripts; **Git for Windows runs them via its
+bundled bash**, so `dwarpal init` and the pre-commit/pre-push flow work under
+Windows git (CI is verified on `windows-latest`). Two Windows specifics:
+- Hook chaining detects displaced hooks by *existence* (NTFS has no exec bit),
+  matching how Git for Windows runs hooks by shebang.
+- Use Git Bash or a git client backed by Git for Windows; a POSIX `sh` on
+  `PATH` is required for the hooks to execute.

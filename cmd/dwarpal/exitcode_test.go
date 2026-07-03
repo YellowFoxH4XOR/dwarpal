@@ -11,7 +11,7 @@ import (
 )
 
 // dwarpalBin is the binary built in TestMain.
-func dwarpalBin() string { return filepath.Join(binDir, "dwarpal") }
+func dwarpalBin() string { return filepath.Join(binDir, "dwarpal"+binExt) }
 
 // newRepo makes a temp git repo with deterministic identity.
 func newRepo(t *testing.T) string {

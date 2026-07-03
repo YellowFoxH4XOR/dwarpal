@@ -4,7 +4,7 @@
 exec git init
 # Place the pre-existing hook (content provided below) and make it executable.
 cp pre-commit.sh .git/hooks/pre-commit
-exec chmod +x .git/hooks/pre-commit
+chmod 0755 .git/hooks/pre-commit
 exec dwarpal hook install
 # Stage a small change so the diff-budget gate passes.
 exec git add small.txt
