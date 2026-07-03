@@ -1,0 +1,83 @@
+# CLI reference
+
+Every command Dwarpal ships. `dwarpal <cmd> --help` prints the same detail in
+your terminal. Exit codes are a contract everywhere: **0** pass, **1** blocked,
+**2** config/internal error.
+
+## `dwarpal init`
+
+Set up Dwarpal in a repo: writes a starter `.dwarpal.yml` (never overwrites an
+existing one), installs the pre-commit + pre-push hooks (chaining to any hooks
+already present), and prints what it did.
+
+## `dwarpal check`
+
+Run the gate pipeline. Default target is the staged diff.
+
+| Flag | Effect |
+|---|---|
+| `--range <a>..<b>` | check a commit range instead of the staging area |
+| `--per-commit` | with `--range`: evaluate each commit's diff **separately** — budgets are per commit, so a range of compliant commits doesn't fail on their sum (this is what CI should use for PR ranges) |
+| `--diff <file>` | check a unified-diff patch file instead of git |
+| `--json` | machine-readable `{result, findings, summary, retry_hints}` on stdout (diagnostics stay on stderr) |
+| `--explain-for-agent` | alias of `--json` — the block output an agent consumes to self-correct |
+| `--sarif` | SARIF 2.1.0 for CI annotation (e.g. GitHub PR inline comments) |
+
+## `dwarpal rules`
+
+List the active gates and rules for this repo (from the current config) and
+where each setting comes from.
+
+## `dwarpal explain <rule-id>`
+
+Why a rule exists and how to fix a finding it raised. Accepts the bare
+`rule-id` or the `gate/rule-id` form; `--json` for structured output. Every
+finding's `docs_url` points at the matching [rule page](rules/).
+
+## `dwarpal task <id> --paths <glob>...`
+
+Declare the current task's scope — writes `.dwarpal-task.yml`. The scope gate
+then blocks files changed outside the declared paths. The task id also feeds
+the intent gate (Gate 7) as the stated intent.
+
+## `dwarpal agent setup <claude-code|codex|opencode|pi>`
+
+Wire Dwarpal into a coding agent's own loop: an idempotent managed instruction
+block in `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex/OpenCode/Pi) teaching
+the pre-flight workflow, plus — for Claude Code — a PreToolUse hook merged into
+`.claude/settings.json` that feeds block reasons back to the model before a
+`git commit` runs. See the [agent integration guides](integrations/).
+
+## `dwarpal bypass --reason "<text>"`
+
+One-shot, auditable override: arms exactly **one** commit to skip the gates
+(that commit still gets a push marker), and records the reason to
+`.dwarpal/bypass.log` + a git note. Rejected under `mode: ci_strict`. For
+skipping a *single rule* rather than the whole gate, prefer the
+`Dwarpal-Override:` trailer / `DWARPAL_OVERRIDE` env (see
+[configuration](configuration.md#escape-hatches-all-audited)).
+
+## `dwarpal feedback <rule-id> --reason "<text>"`
+
+Record a false positive **locally** (`.dwarpal/feedback.log`) and print a
+prefilled GitHub-issue URL you can choose to open. Nothing is ever sent
+automatically — false positives are the project's bugs, and the no-telemetry
+promise is absolute.
+
+## `dwarpal hook install | uninstall`
+
+Manage the git hooks explicitly (what `init` does for the hook half): sets/
+restores `core.hooksPath`, chains to displaced hooks, installs the marker +
+pre-push verification.
+
+## `dwarpal doctor`
+
+Diagnose the setup without changing anything: system git presence, git
+work-tree, `.dwarpal.yml` validity, hook installation, and AST language
+support (probed live per language — Go via `go/parser`, TS/JS/Python via the
+tree-sitter runtime). Exit 0 when the critical checks pass, else 2.
+
+## `dwarpal version`
+
+Version, commit, and build date (injected at release time). Handy when
+several binaries are around — `version` tells you exactly which one you ran.
