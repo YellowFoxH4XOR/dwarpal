@@ -34,3 +34,10 @@ jobs:
           # PAT with repo scope on YellowFoxH4XOR/homebrew-tap so goreleaser can
           # push the formula. Falls back to GITHUB_TOKEN (same-repo only).
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          # macOS notarization (dormant until these secrets exist — see
+          # docs/notarization.md for the one-time Apple setup)
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}

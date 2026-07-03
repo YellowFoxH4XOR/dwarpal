@@ -37,6 +37,24 @@ archives:
       - LICENSE
       - README.md
 
+# macOS code signing + notarization (cross-platform via goreleaser's built-in
+# quill — no macOS runner needed). Dormant until the four MACOS_* secrets
+# exist in the repo; releases work unchanged without them. Setup runbook:
+# docs/notarization.md
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids: [dwarpal]
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"       # base64 of Developer ID Application .p12
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}" # App Store Connect issuer UUID
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"             # base64 of the .p8 API key
+        wait: true
+        timeout: 20m
+
 checksum:
   name_template: "checksums.txt"
 
