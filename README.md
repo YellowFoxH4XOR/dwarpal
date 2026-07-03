@@ -76,6 +76,22 @@ why `mode: ci_strict` + the GitHub Action are the real enforcement:
 - uses: YellowFoxH4XOR/dwarpal/action@v1   # SARIF annotations on the PR
 ```
 
+## Use it inside your agent
+
+The gate is better as part of the agent's loop than as a wall it hits.
+One command per tool:
+
+```sh
+dwarpal agent setup claude-code   # CLAUDE.md block + PreToolUse pre-flight hook
+dwarpal agent setup codex         # AGENTS.md block
+dwarpal agent setup opencode      # AGENTS.md block
+dwarpal agent setup pi            # AGENTS.md block
+```
+
+The agent learns to pre-flight (`dwarpal check --explain-for-agent`), read
+`retry_hints`, and fix its own mistakes *before* committing. Claude Code
+additionally gets a hook that feeds block-reasons straight back to the model.
+
 ## Configuration
 
 `dwarpal init` writes a commented `.dwarpal.yml` at the repo root — versioned,
@@ -89,6 +105,7 @@ note); rejected under `ci_strict`.
 - [Configuration reference](docs/configuration.md) — every `.dwarpal.yml` key
 - [Rule reference](docs/rules/) — every rule: what, why, how to fix (also via `dwarpal explain`)
 - [Coverage recipes](docs/recipes/coverage.md) — Go, Jest, Vitest, pytest, JaCoCo, SimpleCov, coverlet
+- Agents: [Claude Code](docs/integrations/claude-code.md) · [Codex](docs/integrations/codex.md) · [OpenCode](docs/integrations/opencode.md) · [Pi](docs/integrations/pi.md)
 - Integrations: [GitHub Actions](docs/integrations/github-actions.md) · [GitLab CI](docs/integrations/gitlab.md) · [pre-commit framework](docs/integrations/pre-commit.md) · [Docker](docs/integrations/docker.md)
 - [Why harnesses beat prompts](docs/why-harnesses-beat-prompts.md) — the philosophy
 

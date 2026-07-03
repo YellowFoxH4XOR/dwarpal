@@ -1,0 +1,37 @@
+# cli-core: budgets are PER COMMIT (PRD §5.2). Two compliant commits whose SUM
+# exceeds the budget: the whole-range check blocks (aggregate view), but
+# --per-commit passes — the semantics CI must use for PR ranges.
+exec git init
+exec git add .
+exec git commit --no-verify -m base
+
+cp four1.txt a.txt
+exec git add a.txt
+exec git commit --no-verify -m c1
+cp four2.txt b.txt
+exec git add b.txt
+exec git commit --no-verify -m c2
+
+# aggregate range: 8 lines > 6 budget -> blocked
+! exec dwarpal check --range HEAD~2..HEAD
+stdout 'exceeds the 6 limit'
+
+# per-commit: each commit is 4 lines <= 6 -> passes
+exec dwarpal check --range HEAD~2..HEAD --per-commit
+stdout 'no findings'
+
+-- .dwarpal.yml --
+version: 1
+gates:
+  diff_budget:
+    max_lines: 6
+-- four1.txt --
+1
+2
+3
+4
+-- four2.txt --
+5
+6
+7
+8

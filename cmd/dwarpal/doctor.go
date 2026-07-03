@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/YellowFoxH4XOR/dwarpal/internal/astengine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
 )
 
@@ -66,7 +67,19 @@ func runDoctor() error {
 	}
 
 	fmt.Println("✓ AST language support: Go (stdlib go/parser)")
-	fmt.Println("✗ AST language support: TypeScript/Python: not in this build")
+	// Probe the tree-sitter runtime for real rather than asserting a constant —
+	// a hardcoded line here shipped stale once already (claimed TS/Python were
+	// absent for two releases after they landed).
+	for _, probe := range []struct{ label, file, src string }{
+		{"TypeScript/JavaScript", "probe.ts", "function p(): number { return 1; }"},
+		{"Python", "probe.py", "def p():\n    return 1\n"},
+	} {
+		if _, err := astengine.Parse(probe.file, []byte(probe.src)); err == nil {
+			fmt.Printf("✓ AST language support: %s (tree-sitter, pure Go)\n", probe.label)
+		} else {
+			fmt.Printf("✗ AST language support: %s: %v\n", probe.label, err)
+		}
+	}
 
 	if !critical {
 		return &exitError{code: 2, msg: "doctor found critical issues"}

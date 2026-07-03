@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **`dwarpal agent setup <claude-code|codex|opencode|pi>`** — wires the gate
+  into the agent's own loop: idempotent managed instruction blocks in
+  CLAUDE.md/AGENTS.md (pre-flight workflow, provenance identity, no-bypass
+  contract), and for Claude Code a PreToolUse hook merged into
+  .claude/settings.json that feeds block JSON straight back to the model
+  before the commit attempt
+- **`check --range --per-commit`**: evaluate each commit separately —
+  budgets are per commit (PRD §5.2), so a range of compliant commits must
+  not fail on their sum. The GitHub Action now uses it for PR ranges
+  (found when the gate blocked its own maintainer's split PR)
+
 ## v0.3.0
 
 - **BREAKING (behavior)**: `provenance.apply_gates_to` now defaults to

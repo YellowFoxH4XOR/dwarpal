@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -16,16 +18,17 @@ import (
 
 func newCheckCmd() *cobra.Command {
 	var (
-		jsonOut  bool
-		sarifOut bool
-		rangeArg string
-		diffFile string
+		jsonOut   bool
+		sarifOut  bool
+		rangeArg  string
+		diffFile  string
+		perCommit bool
 	)
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Run the gate pipeline against staged changes (or a commit range)",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runCheck(jsonOut, sarifOut, rangeArg, diffFile)
+			return runCheck(jsonOut, sarifOut, rangeArg, diffFile, perCommit)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON (stdout only)")
@@ -33,10 +36,11 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&sarifOut, "sarif", false, "emit SARIF 2.1.0 for CI annotation (stdout only)")
 	cmd.Flags().StringVar(&rangeArg, "range", "", "check a commit range instead of the staging area, e.g. HEAD~1..HEAD")
 	cmd.Flags().StringVar(&diffFile, "diff", "", "check a unified-diff patch file instead of the staging area")
+	cmd.Flags().BoolVar(&perCommit, "per-commit", false, "with --range: evaluate each commit's diff separately (budgets are per commit, PRD §5.2)")
 	return cmd
 }
 
-func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string) error {
+func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string, perCommit bool) error {
 	if !gitAvailable() {
 		return &exitError{code: 2, msg: gitio.ErrGitNotFound.Error()}
 	}
@@ -65,8 +69,22 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string) error {
 	}
 
 	gates, prov, idx := buildGates(root, cfg, collectOverrides(root, rangeArg))
-	res := engine.RunWith(context.Background(), gates, diff, idx,
-		engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
+
+	var res engine.Result
+	if perCommit && rangeArg != "" {
+		// Budgets are defined PER COMMIT (PRD §5.2 Gate 1): a range of three
+		// compliant commits must not fail because their sum exceeds one
+		// commit's budget. Evaluate each commit's own diff; merge commits are
+		// skipped (their content arrived via their parents, same rule as the
+		// pre-push marker check).
+		res, err = runPerCommit(ex, root, gates, idx, cfg, rangeArg)
+		if err != nil {
+			return &exitError{code: 2, msg: err.Error()}
+		}
+	} else {
+		res = engine.RunWith(context.Background(), gates, diff, idx,
+			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
+	}
 
 	blocking := res.Blocking() && cfg.Mode != config.ModeWarn
 	in := report.Input{
@@ -116,4 +134,46 @@ func resultString(mode config.Mode, res engine.Result, diff *gitio.Diff) string 
 		return report.ResultBlocked
 	}
 	return report.ResultPassed
+}
+
+// runPerCommit evaluates every non-merge commit in the range independently
+// and merges the results. Findings keep their file:line; a commit reference
+// is appended to the message so multi-commit output stays attributable.
+func runPerCommit(ex *gitio.Extractor, root string, gates []engine.Gate, idx engine.RepoIndex, cfg config.Config, rangeArg string) (engine.Result, error) {
+	shas, err := revList(root, rangeArg)
+	if err != nil {
+		return engine.Result{}, err
+	}
+	var merged engine.Result
+	for _, sha := range shas {
+		diff, err := ex.Range(sha + "~1.." + sha)
+		if err != nil {
+			return engine.Result{}, err
+		}
+		res := engine.RunWith(context.Background(), gates, diff, idx,
+			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock})
+		for i := range res.Findings {
+			res.Findings[i].Message += " (commit " + sha[:7] + ")"
+		}
+		merged.Findings = append(merged.Findings, res.Findings...)
+		merged.GateErrors = append(merged.GateErrors, res.GateErrors...)
+	}
+	return merged, nil
+}
+
+// revList returns the range's non-merge commits, oldest first.
+func revList(root, rangeArg string) ([]string, error) {
+	cmd := exec.Command("git", "rev-list", "--no-merges", "--reverse", rangeArg)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git rev-list %s: %w", rangeArg, err)
+	}
+	var shas []string
+	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if l != "" {
+			shas = append(shas, l)
+		}
+	}
+	return shas, nil
 }
