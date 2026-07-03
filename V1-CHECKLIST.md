@@ -96,7 +96,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 56. ✅ `go install` path
 57. ✅ curl install script (with macOS quarantine self-fix)
 58. ✅ GitHub Releases via goreleaser (proven twice: v0.1.0, v0.1.1)
-59. ◐ Docker image — Dockerfile written ✅; never built/published ☐
+59. ✅ Docker image — built & verified (45MB, ldflags version, mounted-repo check works, safe.directory hardening for Linux CI); registry publishing on release ☐ optional
 60. ✅ GitHub Action — verified live on PR #3: install → check --sarif → SARIF upload (dogfood workflow pins the PR head SHA)
 61. ☐ GitLab CI template
 62. ☐ pre-commit-framework hook definition
@@ -134,7 +134,7 @@ Every requirement from dwarpal-prd.md, numbered. ✅ = shipped & verified.
 
 ---
 
-**Score: 58 ✅ / 4 ◐ / 22 ☐ (84 items).**
+**Score: 59 ✅ / 3 ◐ / 22 ☐ (84 items).**
 Functional core + distribution + all in-spec feature gaps: done. Remaining:
 true tree-sitter AST for TS/Python (28, 29 — heuristic tier ships today),
-release-infra verification (59, 63), and the launch motion (76–84).
+notarization (63), and the launch motion (76–84).
