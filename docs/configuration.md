@@ -15,7 +15,7 @@ provenance:
   branch_prefixes: ["agent/", "ai/"]
   trailers: ["Claude", "GitHub Copilot", "Cursor", "Devin", "Aider"]
   heuristics: []             # optional regexes vs branch/commit message
-  apply_gates_to: agent-only # agent-only | all-commits
+  apply_gates_to: all-commits # all-commits (default) | agent-only (exempt humans)
 
 gates:
   diff_budget:
@@ -72,9 +72,10 @@ architecture_rules:          # your own layering assertions (Go, go/ast)
 
 ## Provenance & who gets gated
 
-`apply_gates_to: agent-only` (default) means **human commits are untouched** —
-content gates run only when the change is detected as agent-authored, via (in
-order): the `AGENTGATE_AGENT` env var, a `Co-Authored-By` trailer matching a
+`apply_gates_to: all-commits` (default) gates **every commit** — the same
+rules for every author. Setting `agent-only` exempts human commits: content
+gates then run only when the change is detected as agent-authored, via (in
+order) the `AGENTGATE_AGENT` env var, a `Co-Authored-By` trailer matching a
 configured agent identity, a configured branch prefix, or a `heuristics`
 regex. Branch policy always runs (it self-no-ops for humans).
 

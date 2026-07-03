@@ -30,13 +30,13 @@ Dwarpal SHALL block commits detected as agent-authored from landing directly on 
 - **THEN** the branch-policy check produces no finding
 
 ### Requirement: apply_gates_to scopes non-branch-policy gates
-`provenance.apply_gates_to` SHALL control which commits Gates 3 and 4 (and future content/context gates) run against: `agent-only` (default) runs them only on commits detected as agent-authored; `all-commits` runs them on every commit. Gate 2's branch-policy check always applies to agent-authored commits regardless of this setting.
+`provenance.apply_gates_to` SHALL control which commits Gates 3 and 4 (and future content/context gates) run against: `all-commits` (default) runs them on every commit; `agent-only` is the explicit opt-out that runs them only on commits detected as agent-authored. Gate 2's branch-policy check always applies to agent-authored commits regardless of this setting.
 
-#### Scenario: agent-only skips human commits for Gate 3/4
+#### Scenario: all-commits default gates human commits
+- **WHEN** no `apply_gates_to` is configured and a human-authored commit exceeds a budget
+- **THEN** the content gates run and the commit is blocked
+
+#### Scenario: agent-only opt-out skips human commits for Gate 3/4
 - **WHEN** `apply_gates_to: agent-only` and a commit is detected as human-authored
-- **THEN** Gate 3 and Gate 4 report no findings for that commit, even if it would otherwise violate a rule
-
-#### Scenario: all-commits runs Gate 3/4 on human commits too
-- **WHEN** `apply_gates_to: all-commits` and a commit is detected as human-authored
-- **THEN** Gate 3 and Gate 4 run and may report findings for that commit
+- **THEN** Gates 3 and 4 do not run for that commit
 

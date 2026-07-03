@@ -19,7 +19,7 @@ mode: enforce            # enforce | warn | ci_strict
 provenance:
   branch_prefixes: ["agent/", "ai/"]
   trailers: ["Claude", "GitHub Copilot", "Cursor", "Devin", "Aider"]
-  apply_gates_to: agent-only   # agent-only | all-commits
+  apply_gates_to: all-commits  # all-commits (default) | agent-only (exempt humans)
 
 gates:
   diff_budget:

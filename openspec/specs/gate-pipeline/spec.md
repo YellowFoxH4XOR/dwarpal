@@ -33,13 +33,13 @@ If a deterministic gate returns an infrastructure error, the engine SHALL treat 
 - **THEN** the process exits 1 and the report names the failed plugin gate
 
 ### Requirement: Gate ordering and provenance-based filtering
-Gates SHALL run in a fixed registry order (cheapest first: diff-budget, branch-policy, ai-patterns, scope). Gates 3 and 4 SHALL be filtered per commit according to `provenance.apply_gates_to` (`agent-only` default runs them only on agent-authored commits; `all-commits` runs them on every commit). Gate 2's branch-policy check is never filtered by `apply_gates_to`.
+Gates SHALL run in a fixed registry order (cheapest first: diff-budget, branch-policy, ai-patterns, scope). Gates 3 and 4 SHALL be filtered per commit according to `provenance.apply_gates_to` (`all-commits` default runs them on every commit; `agent-only` opt-out runs them only on agent-authored commits). Gate 2's branch-policy check is never filtered by `apply_gates_to`.
 
-#### Scenario: Registry order determines default execution order
-- **WHEN** `dwarpal rules` lists enabled gates with no custom ordering configured
-- **THEN** the order shown is diff-budget, branch-policy, ai-patterns, scope
+#### Scenario: Fixed order
+- **WHEN** multiple gates produce findings in one run
+- **THEN** findings are reported grouped in registry order regardless of gate execution timing
 
-#### Scenario: apply_gates_to filters ai-patterns and scope, not branch-policy
+#### Scenario: Branch policy exempt from filtering
 - **WHEN** `provenance.apply_gates_to: agent-only` and a commit is detected as human-authored and targets a protected branch
-- **THEN** the branch-policy gate still evaluates that commit (and reports nothing if the commit is human-authored) while ai-patterns and scope are skipped entirely for it
+- **THEN** the branch-policy check still runs (and self-no-ops for the human author)
 

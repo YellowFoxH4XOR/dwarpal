@@ -161,7 +161,10 @@ func Defaults() Config {
 		Provenance: ProvenanceBlock{
 			BranchPrefixes: []string{"agent/", "ai/"},
 			Trailers:       []string{"Claude", "GitHub Copilot", "Cursor", "Devin", "Aider"},
-			ApplyGatesTo:   ApplyAgentOnly,
+			// Default: gate EVERY commit. Quality rules that only apply to
+			// some authors invite drift; teams that want humans exempt opt
+			// out explicitly with agent-only.
+			ApplyGatesTo: ApplyAllCommits,
 		},
 		Gates: GatesBlock{
 			DiffBudget: DiffBudget{

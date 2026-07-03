@@ -59,9 +59,11 @@ dwarpal rules     # shows every active gate and rule
 | `intent` | "Does this diff do *only* what was asked?" (LLM, BYO key, fail-open) | off |
 | `plugin` | Your existing tools — semgrep, gitleaks, anything with an exit code | opt-in |
 
-Gates apply to **agent-authored commits only** by default (detected via env
-var, `Co-Authored-By` trailers, or `agent/*` branch prefix) — human commits
-stay untouched. Deterministic gates fail closed; only the LLM gate fails open.
+Gates apply to **every commit by default** — quality rules that only bind
+some authors invite drift. Teams that want human commits exempt opt out with
+`apply_gates_to: agent-only` (agents detected via env var, `Co-Authored-By`
+trailers, `agent/*` branch prefix, or configurable heuristics). Deterministic
+gates fail closed; only the LLM gate fails open.
 
 Local hooks are developer experience, not security: agents can `--no-verify`.
 That's why the pre-push hook verifies every pushed commit passed the gate, and
