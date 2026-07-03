@@ -16,7 +16,7 @@ func newAgentCmd() *cobra.Command {
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "setup <" + strings.Join(agentsetup.SupportedTools(), "|") + ">",
-		Short: "Teach an agent this repo's gate: instruction block + (Claude Code) pre-flight hook",
+		Short: "Teach an agent this repo's gate: instruction block + skill + (Claude Code) pre-flight hook",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runAgentSetup(args[0])
@@ -51,6 +51,16 @@ func runAgentSetup(toolArg string) error {
 		verb = "created"
 	}
 	fmt.Printf("• %s %s\n", verb, path)
+
+	skillPath, skillCreated, err := agentsetup.UpsertSkill(root, tool)
+	if err != nil {
+		return &exitError{code: 2, msg: err.Error()}
+	}
+	skillVerb := "refreshed"
+	if skillCreated {
+		skillVerb = "installed"
+	}
+	fmt.Printf("• %s Dwarpal skill at %s\n", skillVerb, skillPath)
 
 	if tool == agentsetup.ToolClaudeCode {
 		hookPath, added, err := agentsetup.MergeClaudeSettings(root)

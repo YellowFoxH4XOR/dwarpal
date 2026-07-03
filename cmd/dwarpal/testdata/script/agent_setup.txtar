@@ -13,20 +13,29 @@ grep 'you are the config author' CLAUDE.md
 exists .claude/settings.json
 grep 'PreToolUse' .claude/settings.json
 grep 'git commit' .claude/settings.json
+# and a native Claude Code skill under .claude/skills
+exists .claude/skills/dwarpal/SKILL.md
+grep 'name: dwarpal' .claude/skills/dwarpal/SKILL.md
+grep 'dwarpal analyze' .claude/skills/dwarpal/SKILL.md
 
 # re-run: no duplicates
 exec dwarpal agent setup claude-code
 exec dwarpal agent setup claude-code
 grep -count=1 'dwarpal:begin' CLAUDE.md
 
-# the AGENTS.md trio share one file, one block
+# the AGENTS.md trio share one file, one block — and one .agents/skills skill
 exec dwarpal agent setup codex
 grep 'AGENTGATE_AGENT="Codex"' AGENTS.md
+exists .agents/skills/dwarpal/SKILL.md
+grep 'name: dwarpal' .agents/skills/dwarpal/SKILL.md
 exec dwarpal agent setup opencode
 grep -count=1 'dwarpal:begin' AGENTS.md
 grep 'AGENTGATE_AGENT="OpenCode"' AGENTS.md
 exec dwarpal agent setup pi
 grep 'AGENTGATE_AGENT="Pi"' AGENTS.md
+# claude-code's skill is separate; the .agents trio share theirs (one dir each)
+exists .claude/skills/dwarpal/SKILL.md
+exists .agents/skills/dwarpal/SKILL.md
 
 # unknown tool rejected with the supported list
 ! exec dwarpal agent setup vim

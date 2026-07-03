@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **`dwarpal agent setup` now installs an Agent Skill.** Alongside the
+  instruction block, it writes a portable `SKILL.md` teaching the full Dwarpal
+  workflow (pre-flight check→fix loop, authoring `.dwarpal.yml` from `dwarpal
+  analyze`, never bypass) as an on-demand, auto-invocable capability. Uses the
+  cross-agent Agent Skills standard: `.claude/skills/dwarpal/` for Claude Code,
+  the shared `.agents/skills/dwarpal/` that Codex, OpenCode, and Pi all read
+  natively — so one file serves those three.
+
 ## v0.5.1 — 2026-07-03
 
 - **macOS: `brew install --cask` no longer trips Gatekeeper.** The cask now
