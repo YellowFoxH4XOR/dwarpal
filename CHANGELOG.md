@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 — 2026-07-04
 
 - **`dwarpal analyze` now fingerprints every language, not just Go.** Python,
   TypeScript, and JavaScript get their function count, average size, and learned
