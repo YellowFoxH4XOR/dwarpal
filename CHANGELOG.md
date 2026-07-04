@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.7.0 — 2026-07-04
+
+- **`dwarpal census` — a whole-repo decay ratchet.** Where `dwarpal check` is
+  diff-scoped and sees only the staged change, `census` runs configured detectors
+  over the *entire* repo to count cumulative decay (dead code, unused symbols) —
+  the kind a diff gate structurally cannot catch, because a function goes dead in
+  a later PR whose diff never touches it. `--update-baseline` records the current
+  counts (a committed `.dwarpal/baseline.json`); `--check` fails only when a count
+  rises above that baseline, naming the net-new symbols. Existing debt is
+  grandfathered, new debt is blocked, the number can only ratchet down. Findings
+  use the same `{result, findings, retry_hints}` agent contract as `dwarpal check`.
+
+- **Detector presets.** Built-in wrappers for `deadcode`, `vulture`,
+  `staticcheck-unused`, and `ruff-unused` (see `dwarpal census --list`). A
+  configured-but-missing detector fails `--check` loudly (exit 2) rather than
+  passing as zero. Diff-local detectors can also run at commit time via a
+  `gates.plugins` `preset:` shorthand. The analysis is delegated to these mature
+  tools — Dwarpal owns the ratchet, not the analysis.
+
 ## v0.6.0 — 2026-07-04
 
 - **`dwarpal analyze` now fingerprints every language, not just Go.** Python,
