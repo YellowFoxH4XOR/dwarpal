@@ -181,3 +181,39 @@ func snapshot(t *testing.T, dir string) map[string]bool {
 	}
 	return files
 }
+
+// analyze must produce a per-language convention fingerprint for non-Go
+// languages too — the whole point of the language-parity work. A Python repo
+// should report Python's function count and its learned naming style, not just
+// import forms.
+func TestRun_PerLanguageConventionsForNonGo(t *testing.T) {
+	dir, git := gitRepo(t)
+	for i := 0; i < 8; i++ {
+		name := "h" + string(rune('a'+i)) + ".py"
+		write(t, dir, name, "def handle_request_"+string(rune('a'+i))+"():\n    return 1\n")
+	}
+	git("add", "-A")
+	git("commit", "-m", "python")
+
+	rep, err := Run(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	py, ok := rep.Conventions["python"]
+	if !ok {
+		t.Fatalf("expected python conventions; got languages=%v", rep.Languages)
+	}
+	if py.Funcs < 5 {
+		t.Errorf("expected python function count, got %d", py.Funcs)
+	}
+	if py.DominantNaming != "snake_case" {
+		t.Errorf("a snake_case Python repo should report snake_case naming, got %q", py.DominantNaming)
+	}
+}
+
+func write(t *testing.T, dir, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

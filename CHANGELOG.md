@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **`dwarpal analyze` now fingerprints every language, not just Go.** Python,
+  TypeScript, and JavaScript get their function count, average size, and learned
+  naming style (snake_case vs camelCase) in the output an agent uses to author
+  `.dwarpal.yml` — previously non-Go languages showed only import form. Reuses
+  the per-language `FuncByLang` stats.
+
 - **`convention_drift` naming & size now work per language, not just Go.** The
   naming baseline is *learned per language* — snake_case is the norm in Python,
   camelCase in Go/JS — so a camelCase function in a snake_case Python repo drifts

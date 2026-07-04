@@ -47,6 +47,7 @@ type LangConv struct {
 	ImportShare        float64 `json:"import_share,omitempty"`
 	DominantErrorIdiom string  `json:"dominant_error_idiom,omitempty"`
 	ErrorIdiomShare    float64 `json:"error_idiom_share,omitempty"`
+	DominantNaming     string  `json:"dominant_naming,omitempty"` // snake_case | camelCase
 	SnakeCaseFuncs     int     `json:"snake_case_funcs,omitempty"`
 	Funcs              int     `json:"funcs,omitempty"`
 	AvgFuncLines       int     `json:"avg_func_lines,omitempty"`
@@ -73,18 +74,36 @@ func Run(root string) (*Report, error) {
 // the language list.
 func (r *Report) fromIndex(idx *repoindex.Index) {
 	c := idx.Conventions
-	if c.Funcs > 0 {
-		lc := LangConv{
-			Funcs:          c.Funcs,
-			SnakeCaseFuncs: c.SnakeCaseFuncs,
-			AvgFuncLines:   int(c.AvgFuncLines() + 0.5),
+	seen := map[string]bool{}
+
+	// Per-language function conventions (naming case, size) — now for every
+	// language, not just Go, via the per-language FuncByLang counts.
+	for lang, s := range c.FuncByLang {
+		if s.Funcs == 0 {
+			continue
 		}
-		if idiom, share := c.DominantErrorIdiom(); idiom != "" {
-			lc.DominantErrorIdiom, lc.ErrorIdiomShare = idiom, round2(share)
+		lc := r.Conventions[lang]
+		lc.Funcs = s.Funcs
+		lc.SnakeCaseFuncs = s.SnakeCaseFuncs
+		lc.AvgFuncLines = int(c.AvgFuncLinesFor(lang) + 0.5)
+		if ratio, _ := c.SnakeRatio(lang); ratio >= 0.85 {
+			lc.DominantNaming = "snake_case"
+		} else if ratio <= 0.15 {
+			lc.DominantNaming = "camelCase"
 		}
-		r.Conventions["go"] = lc
-		r.Languages = append(r.Languages, "go")
+		r.Conventions[lang] = lc
+		seen[lang] = true
 	}
+
+	// Error idiom is a Go-specific concept.
+	if idiom, share := c.DominantErrorIdiom(); idiom != "" {
+		lc := r.Conventions["go"]
+		lc.DominantErrorIdiom, lc.ErrorIdiomShare = idiom, round2(share)
+		r.Conventions["go"] = lc
+		seen["go"] = true
+	}
+
+	// Import style per language.
 	for lang := range c.Imports {
 		if lang == "go-error-idiom" {
 			continue
@@ -94,9 +113,11 @@ func (r *Report) fromIndex(idx *repoindex.Index) {
 			lc.DominantImportForm, lc.ImportShare = form, round2(share)
 		}
 		r.Conventions[lang] = lc
-		if lang != "go" {
-			r.Languages = append(r.Languages, lang)
-		}
+		seen[lang] = true
+	}
+
+	for lang := range seen {
+		r.Languages = append(r.Languages, lang)
 	}
 	sort.Strings(r.Languages)
 	r.Languages = dedupe(r.Languages)
