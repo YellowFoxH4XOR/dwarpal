@@ -47,6 +47,73 @@ type Conventions struct {
 	// Imports counts import forms per language (lang -> form -> count),
 	// consumed by the drift gate's import-style dimension.
 	Imports map[string]map[string]int
+	// FuncByLang holds per-language function-convention counts, so drift and
+	// analyze can compare against the norm FOR THAT LANGUAGE (snake_case is
+	// normal in Python, camelCase in JS) instead of a Go-centric baseline.
+	FuncByLang map[string]FuncStats
+}
+
+// FuncStats is one language's function-convention counts.
+type FuncStats struct {
+	Funcs          int
+	SnakeCaseFuncs int
+	TotalFuncLines int
+}
+
+// SnakeRatio returns lang's share of snake_case function names and the sample
+// size, or (0,0) when the language has no counted functions.
+func (c Conventions) SnakeRatio(lang string) (ratio float64, n int) {
+	s := c.FuncByLang[lang]
+	if s.Funcs == 0 {
+		return 0, 0
+	}
+	return float64(s.SnakeCaseFuncs) / float64(s.Funcs), s.Funcs
+}
+
+// AvgFuncLinesFor returns lang's mean function length, or 0 when none counted.
+func (c Conventions) AvgFuncLinesFor(lang string) float64 {
+	s := c.FuncByLang[lang]
+	if s.Funcs == 0 {
+		return 0
+	}
+	return float64(s.TotalFuncLines) / float64(s.Funcs)
+}
+
+// addFuncStats accumulates funcs into lang's per-language counts. Cheap: it only
+// inspects each function's already-extracted name and line span.
+func (c *Conventions) addFuncStats(lang string, funcs []FuncInfo) {
+	if lang == "" || len(funcs) == 0 {
+		return
+	}
+	if c.FuncByLang == nil {
+		c.FuncByLang = map[string]FuncStats{}
+	}
+	s := c.FuncByLang[lang]
+	for _, fn := range funcs {
+		s.Funcs++
+		if strings.Contains(fn.Name, "_") {
+			s.SnakeCaseFuncs++
+		}
+		s.TotalFuncLines += fn.EndLine - fn.StartLine + 1
+	}
+	c.FuncByLang[lang] = s
+}
+
+// LangLabel maps a path to the rule/convention language label used across gates
+// ("go", "python", "typescript", "javascript"), or "" if unsupported.
+func LangLabel(path string) string {
+	if strings.HasSuffix(path, ".go") {
+		return "go"
+	}
+	switch astengine.LanguageFor(path) {
+	case astengine.LangTS:
+		return "typescript"
+	case astengine.LangJS:
+		return "javascript"
+	case astengine.LangPy:
+		return "python"
+	}
+	return ""
 }
 
 // AvgFuncLines returns the mean function length, or 0 when empty.
@@ -201,6 +268,16 @@ func (c *Conventions) merge(o Conventions) {
 			c.Imports[lang][form] += n
 		}
 	}
+	for lang, s := range o.FuncByLang {
+		if c.FuncByLang == nil {
+			c.FuncByLang = map[string]FuncStats{}
+		}
+		cur := c.FuncByLang[lang]
+		cur.Funcs += s.Funcs
+		cur.SnakeCaseFuncs += s.SnakeCaseFuncs
+		cur.TotalFuncLines += s.TotalFuncLines
+		c.FuncByLang[lang] = cur
+	}
 }
 
 // Extractor turns one source file into its function inventory entries.
@@ -246,13 +323,20 @@ const indexDeadline = 5 * time.Second
 func (idx *Index) addFileBudgeted(rel string, src []byte, needFuncs, astOK bool) {
 	if !needFuncs && !strings.HasSuffix(rel, ".go") {
 		// Conventions-only for non-Go: the import fingerprint needs a line
-		// scan, not a parse — no tree-sitter cost at all.
+		// scan, not a parse. Function-convention counts use the HEURISTIC
+		// (line-based) extractor too — no tree-sitter parse on this hot path,
+		// so the p95 the hang fix protects stays intact.
+		if ex := heuristicExtractorFor(rel); ex != nil {
+			idx.Conventions.addFuncStats(LangLabel(rel), ex(rel, src))
+		}
 		idx.countImportsFromTree(nil, rel, src)
 		return
 	}
 	if !astOK && !strings.HasSuffix(rel, ".go") {
 		if ex := heuristicExtractorFor(rel); ex != nil {
-			idx.Funcs = append(idx.Funcs, ex(rel, src)...)
+			funcs := ex(rel, src)
+			idx.Funcs = append(idx.Funcs, funcs...)
+			idx.Conventions.addFuncStats(LangLabel(rel), funcs)
 		}
 		idx.countImportsFromTree(nil, rel, src) // line-scan path
 		return
@@ -303,6 +387,7 @@ func (idx *Index) addFile(rel string, src []byte) {
 		}
 	}
 	idx.Funcs = append(idx.Funcs, funcs...)
+	idx.Conventions.addFuncStats(LangLabel(rel), funcs)
 	idx.countImportsFromTree(tree, rel, src)
 }
 
@@ -339,6 +424,7 @@ func indexFile(idx *Index, rel string, src []byte) {
 			c.SnakeCaseFuncs++
 		}
 		c.TotalFuncLines += info.EndLine - info.StartLine + 1
+		c.addFuncStats("go", []FuncInfo{info}) // per-language mirror
 	}
 }
 
