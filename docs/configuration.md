@@ -52,6 +52,9 @@ gates:
     - name: gitleaks
       exec: "gitleaks protect --staged"
       when: ["**/*"]
+    - name: unused-imports    # `preset:` fills in the command for a built-in
+      preset: ruff-unused     # diff-local detector — see `dwarpal census --list`
+      when: ["**/*.py"]
 
 architecture_rules:          # your own layering assertions (go, python, typescript, javascript)
   - id: db-through-repo-layer
@@ -63,6 +66,10 @@ architecture_rules:          # your own layering assertions (go, python, typescr
 
 rule_overrides:              # reassign a rule's severity, keyed by "gate/rule_id"
   "ai_patterns/no-sql-concat": "warn"   # error | warn | info
+
+census:                      # whole-repo decay ratchet (`dwarpal census`) — NOT a gate
+  detectors: [deadcode]      # built-in detector names; `dwarpal census --list`
+  baseline: .dwarpal/baseline.json      # committed; default shown
 ```
 
 `rule_overrides` reassigns any rule's severity (demoting a noisy `error` to
@@ -77,6 +84,25 @@ your git history. `dwarpal rules` annotates every rule carrying an override.
 | `enforce` | error-severity findings block (exit 1) — the default |
 | `warn` | everything reported, exit is always 0 |
 | `ci_strict` | enforce, plus `dwarpal bypass` is rejected — CI is the real wall; local hooks are DX |
+
+## Census
+
+The `census:` block configures the whole-repo decay ratchet ([`dwarpal
+census`](cli.md#dwarpal-census)). It is **not** a gate and never runs in the
+pre-commit path.
+
+- `detectors`: built-in detector names to run whole-repo. Unknown names fail
+  config load. Run `dwarpal census --list` to see them, their scope, and whether
+  each binary is installed. An empty list disables the census.
+- `baseline`: path to the committed baseline JSON (default
+  `.dwarpal/baseline.json`). It records the accepted counts; `--check` blocks any
+  increase above it. Commit this file so PRs diff against it.
+
+Detectors are external tools **you install** — Dwarpal orchestrates them, it does
+not bundle them. A configured detector that isn't installed fails `--check` (exit
+2) rather than silently passing as zero. Diff-local detectors (e.g.
+`ruff-unused`) can also run at commit time via a plugin `preset:` (see the
+`gates.plugins` example above).
 
 ## Provenance & who gets gated
 

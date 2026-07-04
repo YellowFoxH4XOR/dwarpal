@@ -1,0 +1,61 @@
+# census: the whole-repo decay ratchet, driven by a stubbed detector so the test
+# is deterministic and offline. The stub named `deadcode` shadows any real tool
+# because $WORK is prepended to PATH.
+#
+# Skipped on Windows: the stub is a POSIX shell script, which exec.LookPath will
+# not treat as an executable there. The census logic itself is covered
+# cross-platform by the internal/census unit tests.
+[windows] skip 'stub detector requires a POSIX shell'
+env PATH=$WORK:$PATH
+
+exec git init
+exec git add .dwarpal.yml
+exec git commit -m init
+
+chmod 0777 deadcode
+
+# No baseline yet: --check must FAIL LOUD (exit 2), never pass by default.
+! exec dwarpal census --check
+stderr 'no baseline'
+
+# Report mode prints the whole-repo count (one dead symbol from the stub).
+exec dwarpal census
+stdout 'deadcode'
+stdout 'whole-repo'
+
+# Accept the current count as the committed baseline.
+exec dwarpal census --update-baseline
+exists .dwarpal/baseline.json
+
+# Flat vs baseline: --check passes. Existing debt is grandfathered.
+exec dwarpal census --check
+stdout 'no findings'
+
+# Introduce a NEW dead symbol (swap in the two-item stub). The ratchet must
+# block and name ONLY the new symbol, not the grandfathered one.
+cp deadcode2 deadcode
+chmod 0777 deadcode
+! exec dwarpal census --check
+stdout 'new: example.com/app/pkg.fresh'
+stdout 'stopped this at the gate'
+! stdout 'pkg.old'
+
+# The JSON output is the same agent contract as `dwarpal check`.
+! exec dwarpal census --check --json
+stdout '"result": "blocked"'
+stdout '"retry_hints"'
+
+-- .dwarpal.yml --
+version: 1
+census:
+  detectors: [deadcode]
+-- deadcode --
+#!/bin/sh
+cat <<'JSON'
+[{"Name":"pkg","Path":"example.com/app/pkg","Funcs":[{"Name":"old","Position":{"File":"pkg/a.go","Line":10,"Col":6}}]}]
+JSON
+-- deadcode2 --
+#!/bin/sh
+cat <<'JSON'
+[{"Name":"pkg","Path":"example.com/app/pkg","Funcs":[{"Name":"old","Position":{"File":"pkg/a.go","Line":10,"Col":6}},{"Name":"fresh","Position":{"File":"pkg/b.go","Line":5,"Col":6}}]}]
+JSON

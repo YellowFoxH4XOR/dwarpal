@@ -65,6 +65,35 @@ surfaced for manual review only. The written overrides take effect immediately:
 `dwarpal check` reads `rule_overrides` and `dwarpal rules` annotates each
 overridden rule.
 
+## `dwarpal census`
+
+Whole-repo **decay ratchet**. Where `dwarpal check` is diff-scoped and sees only
+the staged change, `census` runs configured detectors over the ENTIRE repo to
+count cumulative decay — dead code, unused symbols, duplication — the kind a diff
+gate structurally cannot catch (a function goes dead in a later PR whose diff
+never touches it). Dwarpal owns the ratchet; the analysis is delegated to mature
+external tools you install (see `--list`).
+
+Three modes:
+
+- **report** (no flag): print the current whole-repo counts.
+- `--update-baseline`: record the current counts as the accepted baseline, a
+  committed JSON file (default `.dwarpal/baseline.json`). This *grandfathers*
+  existing debt.
+- `--check`: fail (exit 1) only when a count went **up** versus the baseline,
+  naming the net-new items. Existing debt passes; new debt blocks; the number can
+  only ratchet down. Emits the same `{result, findings, retry_hints}` JSON
+  contract as `dwarpal check` under `--json`.
+
+A configured detector whose binary is **not installed** fails `--check` loudly
+(exit 2) — a ratchet you could not run is never a silent pass. `--list` shows the
+built-in detectors, their scope, command, and whether each is installed.
+
+`census` is O(repo) and is **not** part of the pre-commit path — run it on its
+own CI cadence (nightly, or a per-PR job). Configure it under `census:` in
+`.dwarpal.yml` (see [configuration](configuration.md#census)). Diff-local
+detectors can additionally be wired into `dwarpal check` via a plugin `preset:`.
+
 ## `dwarpal explain <rule-id>`
 
 Why a rule exists and how to fix a finding it raised. Accepts the bare

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/YellowFoxH4XOR/dwarpal/internal/census"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
@@ -180,7 +181,14 @@ func buildGatesForDiff(root string, cfg config.Config, overrides []string, d *gi
 	}
 
 	for _, p := range cfg.Gates.Plugins {
-		gates = append(gates, plugin.New(p.Name, p.Exec, p.When, root))
+		exec := p.Exec
+		if p.Preset != "" {
+			// config.validate already guaranteed a known diff-local preset.
+			if d, ok := census.Lookup(p.Preset); ok {
+				exec = d.Command
+			}
+		}
+		gates = append(gates, plugin.New(p.Name, exec, p.When, root))
 	}
 	return gates, prov, idx
 }
