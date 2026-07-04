@@ -19,6 +19,8 @@ import (
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
+
+	"github.com/YellowFoxH4XOR/dwarpal/internal/census"
 )
 
 // Mode controls whether findings block. See PRD §5.3.
@@ -42,6 +44,17 @@ type Config struct {
 	// "ai_patterns/no-sql-concat": "warn"). Authored by hand, by an agent, or by
 	// `dwarpal audit --apply` from the measured acted-on rate.
 	RuleOverrides map[string]string `koanf:"rule_overrides"`
+	// Census configures the whole-repo decay ratchet (`dwarpal census`). It is
+	// NOT a gate — it runs on its own O(repo) cadence, not the pre-commit path.
+	Census CensusBlock `koanf:"census"`
+}
+
+// CensusBlock configures `dwarpal census`. An empty Detectors list disables the
+// census (nothing to run). Baseline defaults to census.DefaultBaselinePath when
+// left empty.
+type CensusBlock struct {
+	Detectors []string `koanf:"detectors"`
+	Baseline  string   `koanf:"baseline"`
 }
 
 // ArchRule is one user-defined architecture assertion (PRD §5.3). Calls whose
@@ -128,11 +141,15 @@ type ScopeBlock struct {
 	AllowAlways         []string `koanf:"allow_always"`
 }
 
-// Plugin is one Gate 8 exec-plugin definition.
+// Plugin is one Gate 8 exec-plugin definition. Exec is the command to run;
+// alternatively Preset names a built-in diff-local detector (census registry)
+// whose command is filled in for you — so `preset: ruff-unused` gives unused-
+// import detection at commit time without hand-writing the command.
 type Plugin struct {
-	Name string   `koanf:"name"`
-	Exec string   `koanf:"exec"`
-	When []string `koanf:"when"`
+	Name   string   `koanf:"name"`
+	Exec   string   `koanf:"exec"`
+	Preset string   `koanf:"preset"`
+	When   []string `koanf:"when"`
 }
 
 // ApplyGatesTo values.
@@ -231,6 +248,8 @@ var allowedKeys = map[string]bool{
 	"gates.convention_drift.enabled":     true,
 	"gates.convention_drift.severity":    true,
 	"gates.plugins":                      true,
+	"census.detectors":                   true,
+	"census.baseline":                    true,
 }
 
 // Load reads root/.dwarpal.yml, overlaying it on the defaults. A missing file
@@ -313,6 +332,28 @@ func (c Config) validate() error {
 		case "error", "warn", "info":
 		default:
 			return fmt.Errorf("rule_overrides[%q]: invalid severity %q (want error|warn|info)", key, sev)
+		}
+	}
+	for _, name := range c.Census.Detectors {
+		if _, ok := census.Lookup(name); !ok {
+			return fmt.Errorf("census.detectors: unknown detector %q (see `dwarpal census --list`)", name)
+		}
+	}
+	for i, p := range c.Gates.Plugins {
+		if p.Preset == "" {
+			continue
+		}
+		if p.Exec != "" {
+			return fmt.Errorf("gates.plugins[%d]: set either exec or preset, not both", i)
+		}
+		d, ok := census.Lookup(p.Preset)
+		if !ok {
+			return fmt.Errorf("gates.plugins[%d]: unknown preset %q", i, p.Preset)
+		}
+		// A whole-repo detector cannot meet the pre-commit budget — refuse it
+		// as a gate so a misconfiguration can't silently blow the p95.
+		if d.Scope != census.DiffLocal {
+			return fmt.Errorf("gates.plugins[%d]: preset %q is whole-repo; run it via `dwarpal census`, not a commit gate", i, p.Preset)
 		}
 	}
 	return nil
