@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **`architecture_rules` now enforce on Python, TypeScript, and JavaScript** —
+  not just Go. Your layering rules (e.g. "no DB calls outside the repo layer")
+  run against `.py/.ts/.tsx/.js/.jsx` via the existing tree-sitter engine, using
+  the same `matches` / `forbidden_outside` semantics as Go. A rule targeting an
+  unsupported language is now a **loud config error** instead of being silently
+  skipped — a layering rule you think is enforced but isn't is worse than none.
+
 - **`dwarpal audit --apply` + `rule_overrides`.** Audit can now act on its
   signal: `--apply` writes safe **demotions** (a noisy `error` rule → `warn`)
   into a new `rule_overrides` config key, preserving your comments. It never

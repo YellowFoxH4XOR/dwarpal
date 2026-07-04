@@ -53,10 +53,10 @@ gates:
       exec: "gitleaks protect --staged"
       when: ["**/*"]
 
-architecture_rules:          # your own layering assertions (Go, go/ast)
+architecture_rules:          # your own layering assertions (go, python, typescript, javascript)
   - id: db-through-repo-layer
     description: "No direct DB calls outside internal/repo"
-    language: go
+    language: go             # go | python | typescript | javascript
     matches: "sql.Open|db.Query|db.Exec"    # regex over rendered call targets
     forbidden_outside: ["internal/repo/**"] # calls ALLOWED here, blocked elsewhere
     severity: error
