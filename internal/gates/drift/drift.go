@@ -48,59 +48,81 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff, idx engine.RepoIndex) ([]fi
 		return nil, nil
 	}
 	conv := index.Conventions
-	// The Go naming/size checks need a function baseline; the import-style
-	// dimension has its own per-language sample-size guard, so a TS-only repo
-	// (zero Go functions) still gets import scoring.
-	goBaseline := conv.Funcs >= 5
-	var snakeRatio, avg float64
-	if goBaseline {
-		snakeRatio = float64(conv.SnakeCaseFuncs) / float64(conv.Funcs)
-		avg = conv.AvgFuncLines()
-	}
 
 	var findings []finding.Finding
 	for _, f := range d.Files {
-		// Import-style dimension (tree-sitter-ast-engine change, D6): any
-		// supported language, before the Go-only function checks below.
+		// Import-style dimension: any supported language.
 		findings = append(findings, g.importStyleFindings(conv, f)...)
-		// Error-idiom dimension (#37): Go only.
+		// Error-idiom dimension (#37): Go only — it's a Go-specific concept.
 		if strings.HasSuffix(f.Path, ".go") {
 			findings = append(findings, g.errorIdiomFindings(conv, f)...)
 		}
-
-		if !goBaseline || !strings.HasSuffix(f.Path, ".go") || len(f.AddedLines) == 0 {
-			continue
-		}
-		added := map[int]bool{}
-		for _, ln := range f.AddedLines {
-			added[ln.Number] = true
-		}
-		src, err := os.ReadFile(filepath.Join(g.root, f.Path))
-		if err != nil {
-			continue
-		}
-		for _, fn := range repoindex.FunctionsInSource(f.Path, src) {
-			if !touches(fn, added) {
-				continue
-			}
-			// Naming drift: snake_case where the repo overwhelmingly isn't.
-			if strings.Contains(fn.Name, "_") && snakeRatio < 0.1 {
-				findings = append(findings, g.finding(f.Path, fn.StartLine,
-					"naming-style",
-					fmt.Sprintf("function %s uses snake_case; the repo overwhelmingly uses Go camelCase", fn.Name),
-					"rename to match the repo's naming convention"))
-			}
-			// Size drift: much longer than the repo norm.
-			length := fn.EndLine - fn.StartLine + 1
-			if avg > 0 && float64(length) > 3*avg {
-				findings = append(findings, g.finding(f.Path, fn.StartLine,
-					"function-size",
-					fmt.Sprintf("function %s is %d lines; the repo average is %.0f", fn.Name, length, avg),
-					"consider splitting this function to match the repo's typical size"))
-			}
-		}
+		// Naming + size dimensions: per language, against that language's norm.
+		findings = append(findings, g.functionFindings(conv, f)...)
 	}
 	return findings, nil
+}
+
+// functionFindings scores added functions against the repo's convention norm
+// FOR THEIR LANGUAGE: naming case that bucks a strong majority, and functions
+// far longer than that language's typical size. It skips a language without a
+// large enough sample to have a meaningful norm, so a repo's Python files are
+// judged by Python conventions and its Go files by Go conventions.
+func (g *Gate) functionFindings(conv repoindex.Conventions, f gitio.FileChange) []finding.Finding {
+	lang := repoindex.LangLabel(f.Path)
+	if lang == "" || len(f.AddedLines) == 0 {
+		return nil
+	}
+	snakeRatio, n := conv.SnakeRatio(lang)
+	if n < 5 {
+		return nil // too little of this language to have a naming/size norm
+	}
+	ex := repoindex.FunctionsFor(f.Path)
+	if ex == nil {
+		return nil
+	}
+	src, err := os.ReadFile(filepath.Join(g.root, f.Path))
+	if err != nil {
+		return nil
+	}
+	added := make(map[int]bool, len(f.AddedLines))
+	for _, ln := range f.AddedLines {
+		added[ln.Number] = true
+	}
+	avg := conv.AvgFuncLinesFor(lang)
+
+	var out []finding.Finding
+	for _, fn := range ex(f.Path, src) {
+		if !touches(fn, added) {
+			continue
+		}
+		if rule, msg := namingDrift(lang, snakeRatio, fn.Name); rule != "" {
+			out = append(out, g.finding(f.Path, fn.StartLine, rule, msg,
+				"rename to match the repo's "+lang+" naming convention"))
+		}
+		length := fn.EndLine - fn.StartLine + 1
+		if avg > 0 && float64(length) > 3*avg {
+			out = append(out, g.finding(f.Path, fn.StartLine, "function-size",
+				fmt.Sprintf("function %s is %d lines; the repo's %s average is %.0f", fn.Name, length, lang, avg),
+				"consider splitting this function to match the repo's typical size"))
+		}
+	}
+	return out
+}
+
+// namingDrift flags a naming-convention outlier against the language's strong
+// majority: a snake_case name in an overwhelmingly camelCase language (Go, JS),
+// or a camelCase name in an overwhelmingly snake_case one (Python). A mixed repo
+// (no strong majority either way) produces nothing — the thresholds leave a
+// deliberate dead zone so drift only fires on a clear norm.
+func namingDrift(lang string, snakeRatio float64, name string) (rule, msg string) {
+	switch {
+	case snakeRatio <= 0.15 && strings.Contains(name, "_"):
+		return "naming-style", fmt.Sprintf("function %s uses snake_case; the repo's %s is overwhelmingly camelCase", name, lang)
+	case snakeRatio >= 0.85 && strings.ToLower(name) != name:
+		return "naming-style", fmt.Sprintf("function %s uses camelCase; the repo's %s is overwhelmingly snake_case", name, lang)
+	}
+	return "", ""
 }
 
 func (g *Gate) finding(file string, line int, rule, msg, suggestion string) finding.Finding {

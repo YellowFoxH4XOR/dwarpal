@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **`convention_drift` naming & size now work per language, not just Go.** The
+  naming baseline is *learned per language* — snake_case is the norm in Python,
+  camelCase in Go/JS — so a camelCase function in a snake_case Python repo drifts
+  (and vice-versa), instead of the old rule wrongly flagging correct Python
+  names. Function-size drift is measured against each language's own average.
+  Per-language stats are counted with the line-based heuristic extractor on the
+  hot path (no tree-sitter parse), so the p95 the hang fix protects is intact.
+
 - **`architecture_rules` now enforce on Python, TypeScript, and JavaScript** —
   not just Go. Your layering rules (e.g. "no DB calls outside the repo layer")
   run against `.py/.ts/.tsx/.js/.jsx` via the existing tree-sitter engine, using
