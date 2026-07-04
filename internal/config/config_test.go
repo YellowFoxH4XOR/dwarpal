@@ -69,3 +69,41 @@ func TestLoad_NegativeBudgetRejected(t *testing.T) {
 		t.Fatalf("want negative-budget error, got %v", err)
 	}
 }
+
+// A valid census block must load; an unknown detector name must fail closed and
+// name the offender, so a typo can't silently disable decay tracking.
+func TestLoad_CensusDetectors(t *testing.T) {
+	dir := writeConfig(t, "census:\n  detectors: [deadcode]\n")
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("valid census rejected: %v", err)
+	}
+	if len(cfg.Census.Detectors) != 1 || cfg.Census.Detectors[0] != "deadcode" {
+		t.Fatalf("census.detectors not parsed: %+v", cfg.Census)
+	}
+
+	dir = writeConfig(t, "census:\n  detectors: [no-such]\n")
+	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "no-such") {
+		t.Fatalf("want unknown-detector error naming no-such, got %v", err)
+	}
+}
+
+// A plugin preset must resolve to a known DIFF-LOCAL detector. A whole-repo
+// detector as a commit-time preset is rejected: it cannot meet the pre-commit
+// budget, and letting it through would silently blow the p95.
+func TestLoad_PluginPreset(t *testing.T) {
+	dir := writeConfig(t, "gates:\n  plugins:\n    - name: unused\n      preset: ruff-unused\n")
+	if _, err := Load(dir); err != nil {
+		t.Fatalf("valid diff-local preset rejected: %v", err)
+	}
+
+	dir = writeConfig(t, "gates:\n  plugins:\n    - name: dead\n      preset: deadcode\n")
+	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "whole-repo") {
+		t.Fatalf("want whole-repo-preset rejection, got %v", err)
+	}
+
+	dir = writeConfig(t, "gates:\n  plugins:\n    - name: both\n      exec: \"echo hi\"\n      preset: ruff-unused\n")
+	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "exec or preset") {
+		t.Fatalf("want exec+preset conflict error, got %v", err)
+	}
+}
