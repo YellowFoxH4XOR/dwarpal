@@ -89,6 +89,9 @@ func printReport(r *analyze.Report) {
 			if c.DominantErrorIdiom != "" {
 				fmt.Printf("    error idiom: %s (%.0f%%)\n", c.DominantErrorIdiom, c.ErrorIdiomShare*100)
 			}
+			if c.DominantNaming != "" {
+				fmt.Printf("    naming: %s\n", c.DominantNaming)
+			}
 			if c.Funcs > 0 {
 				fmt.Printf("    %d functions, avg %d lines, %d snake_case\n", c.Funcs, c.AvgFuncLines, c.SnakeCaseFuncs)
 			}
