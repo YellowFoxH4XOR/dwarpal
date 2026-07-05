@@ -113,8 +113,15 @@ func Defaults() Config {
 			ApplyGatesTo: ApplyAllCommits,
 		},
 		Gates: GatesBlock{
+			// Calibrated to the agent baseline: a large-scale study of real
+			// repositories (arXiv:2603.27130) found AI-authored commits churn
+			// ~25 lines on median vs ~152 for humans. The 300-line budget sits
+			// well above the agent norm (headroom for a legit larger change) but
+			// tight enough to flag a diff that has ballooned past reviewable —
+			// the signal a 500-line human-oriented budget was missing. Override
+			// per-repo, and use overrides[] to exempt generated paths.
 			DiffBudget: DiffBudget{
-				MaxLines:    500,
+				MaxLines:    300,
 				MaxFiles:    20,
 				MaxNewFiles: 10,
 			},

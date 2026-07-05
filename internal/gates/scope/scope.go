@@ -54,6 +54,7 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff) ([]finding.Finding, error) 
 				Message:    "no task manifest declares the intended scope of this change",
 				Suggestion: "declare intent with `dwarpal task \"<id>\" --paths <globs>` or a .dwarpal-task.yml",
 				RetryHint:  "Declare the task scope before committing: which paths is this change allowed to touch?",
+				Fix:        "dwarpal task \"AUTH-42\" --paths 'internal/auth/**' 'internal/session/**'",
 			}}, nil
 		}
 		return nil, nil // warn-only default: nothing to enforce
@@ -72,6 +73,7 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff) ([]finding.Finding, error) 
 			Message:    fmt.Sprintf("%s is outside the declared task scope", f.Path),
 			Suggestion: "commit this file separately, or widen the task's declared paths if it belongs",
 			RetryHint:  fmt.Sprintf("File %s is outside the declared task scope. Split unrelated changes into their own commit.", f.Path),
+			Fix:        fmt.Sprintf("git restore --staged %s   # then commit it on its own, or add its path to the task manifest if it belongs", f.Path),
 		})
 	}
 	return findings, nil

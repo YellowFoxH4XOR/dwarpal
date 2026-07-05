@@ -59,7 +59,7 @@ not a re-implementation of gitleaks or semgrep:
 
 | Gate | Catches | Default |
 |---|---|---|
-| `diff_budget` | Oversized, unreviewable diffs (agents love these) | 500 lines / 20 files / 10 new |
+| `diff_budget` | Oversized, unreviewable diffs (agents love these) | 300 lines / 20 files / 10 new |
 | `branch_policy` | Agent commits straight to `main`/`release/*` | error |
 | `ai_patterns` | A newly added lint/type suppression, or a broadened catch that swallows the error blocking the agent | error/warn |
 | `scope` | Files outside the declared task (`dwarpal task <id> --paths ...`) | error |
