@@ -1,5 +1,13 @@
 # Dogfood: run the Dwarpal GitHub Action on our own PRs (item #60 — this is the
 # live end-to-end test of action/action.yml: install → check --sarif → upload).
+#
+# Runs in `warn` mode, not the action's `ci_strict` default: this job exists to
+# exercise the action pipeline and surface findings as PR annotations (SARIF
+# severity comes from the finding, not the mode, so an error still annotates as
+# an error), NOT to hard-block our own maintenance PRs — a large mechanical
+# refactor legitimately exceeds diff_budget, and under ci_strict there is no
+# override (by design). The blocking-exit-code path is covered by unit tests
+# (cmd/dwarpal/exitcode_test.go).
 name: Dwarpal
 
 on:
@@ -21,3 +29,5 @@ jobs:
           # Dogfood the PR's own code, not the last release: go install accepts
           # a commit SHA, so the gate tests exactly what this PR ships.
           version: ${{ github.event.pull_request.head.sha }}
+          # Advisory on our own repo — annotate, don't hard-block (see header).
+          mode: warn

@@ -15,7 +15,6 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 )
@@ -44,7 +43,7 @@ func New(paths, allowAlways []string, requireManifest bool) *Gate {
 func (g *Gate) ID() string { return gateID }
 
 // Run flags each changed file outside the declared scope.
-func (g *Gate) Run(_ context.Context, d *gitio.Diff, _ engine.RepoIndex) ([]finding.Finding, error) {
+func (g *Gate) Run(_ context.Context, d *gitio.Diff) ([]finding.Finding, error) {
 	if len(g.paths) == 0 {
 		// No manifest. Block only if configured to require one.
 		if g.requireManifest {

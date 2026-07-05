@@ -4,5 +4,5 @@ exec dwarpal rules
 stdout 'diff_budget'
 stdout 'branch_policy'
 stdout 'ai_patterns'
-stdout 'no-hardcoded-secrets/aws-key'
+stdout 'no-new-lint-suppressions'
 stdout 'apply_gates_to: all-commits'

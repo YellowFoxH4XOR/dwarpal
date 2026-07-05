@@ -29,53 +29,18 @@ gates:
     protected: ["main", "release/*"]
   ai_patterns:
     enabled: true
-    disable_rules: []        # e.g. ["no-hardcoded-secrets/entropy"]
+    disable_rules: []        # e.g. ["no-broad-catch"]
   scope:
     require_task_manifest: false
     allow_always: ["**/*.lock", "**/__snapshots__/**"]
-  convention_drift:
-    enabled: true
-    severity: info           # honest about being heuristic
-  duplicate:
-    enabled: false           # opt-in: builds the repo function index
-    threshold: 0.85          # Jaccard similarity cutoff
-  diff_coverage:             # active only when artifact is set
-    min_percent: 70
-    artifact: "coverage/lcov.info"   # lcov / cobertura XML / go cover.out
-  intent_check:              # LLM gate — off by default, BYO key, fail-open
-    enabled: false
-    provider: openai-compatible     # anthropic | openai-compatible
-    endpoint: ""             # for local/self-hosted (e.g. Ollama)
-    model: ""
-    timeout_seconds: 30
-  plugins:                   # exec contract: nonzero exit = findings
-    - name: gitleaks
-      exec: "gitleaks protect --staged"
-      when: ["**/*"]
-    - name: unused-imports    # `preset:` fills in the command for a built-in
-      preset: ruff-unused     # diff-local detector — see `dwarpal census --list`
-      when: ["**/*.py"]
-
-architecture_rules:          # your own layering assertions (go, python, typescript, javascript)
-  - id: db-through-repo-layer
-    description: "No direct DB calls outside internal/repo"
-    language: go             # go | python | typescript | javascript
-    matches: "sql.Open|db.Query|db.Exec"    # regex over rendered call targets
-    forbidden_outside: ["internal/repo/**"] # calls ALLOWED here, blocked elsewhere
-    severity: error
 
 rule_overrides:              # reassign a rule's severity, keyed by "gate/rule_id"
-  "ai_patterns/no-sql-concat": "warn"   # error | warn | info
-
-census:                      # whole-repo decay ratchet (`dwarpal census`) — NOT a gate
-  detectors: [deadcode]      # built-in detector names; `dwarpal census --list`
-  baseline: .dwarpal/baseline.json      # committed; default shown
+  "ai_patterns/no-broad-catch": "info"   # error | warn | info
 ```
 
 `rule_overrides` reassigns any rule's severity (demoting a noisy `error` to
-`warn`, or promoting an advisory rule). Author it by hand, have your agent write
-it, or let [`dwarpal audit --apply`](cli.md) demote noisy rules for you based on
-your git history. `dwarpal rules` annotates every rule carrying an override.
+`warn`, or promoting an advisory rule). Author it by hand or have your agent
+write it. `dwarpal rules` annotates every rule carrying an override.
 
 ## Modes
 
@@ -83,26 +48,7 @@ your git history. `dwarpal rules` annotates every rule carrying an override.
 |---|---|
 | `enforce` | error-severity findings block (exit 1) — the default |
 | `warn` | everything reported, exit is always 0 |
-| `ci_strict` | enforce, plus `dwarpal bypass` is rejected — CI is the real wall; local hooks are DX |
-
-## Census
-
-The `census:` block configures the whole-repo decay ratchet ([`dwarpal
-census`](cli.md#dwarpal-census)). It is **not** a gate and never runs in the
-pre-commit path.
-
-- `detectors`: built-in detector names to run whole-repo. Unknown names fail
-  config load. Run `dwarpal census --list` to see them, their scope, and whether
-  each binary is installed. An empty list disables the census.
-- `baseline`: path to the committed baseline JSON (default
-  `.dwarpal/baseline.json`). It records the accepted counts; `--check` blocks any
-  increase above it. Commit this file so PRs diff against it.
-
-Detectors are external tools **you install** — Dwarpal orchestrates them, it does
-not bundle them. A configured detector that isn't installed fails `--check` (exit
-2) rather than silently passing as zero. Diff-local detectors (e.g.
-`ruff-unused`) can also run at commit time via a plugin `preset:` (see the
-`gates.plugins` example above).
+| `ci_strict` | enforce, plus `dwarpal bypass` **and** per-run overrides are rejected — CI is the real wall; local hooks are DX |
 
 ## Provenance & who gets gated
 
@@ -113,14 +59,16 @@ order) the `AGENTGATE_AGENT` env var, a `Co-Authored-By` trailer matching a
 configured agent identity, a configured branch prefix, or a `heuristics`
 regex. Branch policy always runs (it self-no-ops for humans).
 
-## Escape hatches (all audited)
+## Escape hatches
+
+All escape hatches are **rejected under `ci_strict`** — a local override carries
+no authority against the CI wall.
 
 - **Per-run rule override**: commit trailer `Dwarpal-Override: <rule-id>`
   (range/CI mode) or `DWARPAL_OVERRIDE=<rule-id>[,<rule-id>]` env (staged
   mode, where no commit message exists yet).
 - **One-shot full bypass**: `dwarpal bypass --reason "..."` — arms exactly one
-  commit, writes `.dwarpal/bypass.log` + a git note, rejected under
-  `ci_strict`.
+  commit, writes `.dwarpal/bypass.log` + a git note.
 - **Policy-level disable**: `gates.ai_patterns.disable_rules` — visible in the
   versioned config's history.
 
@@ -129,5 +77,4 @@ regex. Branch policy always runs (it self-no-ops for humans).
 | Variable | Purpose |
 |---|---|
 | `AGENTGATE_AGENT` | Agent wrappers set this to self-identify |
-| `DWARPAL_OVERRIDE` | Comma-separated rule IDs approved for this run |
-| `DWARPAL_LLM_API_KEY` | The intent gate's provider key — never stored in config |
+| `DWARPAL_OVERRIDE` | Comma-separated rule IDs approved for this run (ignored under `ci_strict`) |

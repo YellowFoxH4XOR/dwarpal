@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — strip to the wedge
+
+Dwarpal is now focused on one thing: gating **agent-authored** diffs with a small
+set of agent-specific, deterministic checks, and feeding fix-hints back into the
+agent's loop. Everything that duplicated a mature external tool, or that lived
+off the commit path, has been removed.
+
+**Removed** (use the dedicated tool instead):
+
+- `dwarpal census` (whole-repo decay ratchet) and its detector presets.
+- `dwarpal audit` (rule precision self-calibration) and `--apply`.
+- `dwarpal analyze` (repo fingerprinting / config suggestion), and `init --learn`.
+- Gates: `diff_coverage`, `convention_drift`, `duplicate`, `intent_check` (LLM),
+  `architecture_rules`, and exec `plugins`.
+- `ai_patterns` secrets rules (private-key/aws-key/assigned-literal/entropy) and
+  `no-sql-concat` — use gitleaks/trufflehog and semgrep.
+- The tree-sitter AST engine and repo index that backed the removed gates.
+
+**Kept and sharpened** — four gates, all deterministic and offline:
+`diff_budget`, `branch_policy`, `scope`, and `ai_patterns` (now just
+`no-new-lint-suppressions` and `no-broad-catch`, the two rules that catch what an
+agent does that a human rarely does).
+
+**Fixed along the way:**
+
+- `DWARPAL_OVERRIDE` and `Dwarpal-Override:` trailers are now rejected under
+  `ci_strict`, matching `dwarpal bypass`.
+- A malformed `.dwarpal-task.yml` now fails loud instead of silently disabling
+  the scope gate.
+
 ## v0.7.0 — 2026-07-04
 
 - **`dwarpal census` — a whole-repo decay ratchet.** Where `dwarpal check` is

@@ -120,23 +120,5 @@ func runRules() error {
 		}
 	}
 	fmt.Printf("  scope          error   require_manifest: %v\n", cfg.Gates.Scope.RequireTaskManifest)
-	if cfg.Gates.Duplicate.Enabled {
-		fmt.Printf("  duplicate      warn    no-duplicate-function (Go), threshold %.2f\n", cfg.Gates.Duplicate.Threshold)
-	} else {
-		fmt.Println("  duplicate      off     enable with gates.duplicate.enabled (builds the repo index)")
-	}
-	if cfg.Gates.ConventionDrift.Enabled {
-		fmt.Printf("  drift          %-6s  convention drift (Go)\n", cfg.Gates.ConventionDrift.Severity)
-	}
-	if cfg.Gates.DiffCoverage.Artifact != "" {
-		fmt.Printf("  diff_coverage  error   %.0f%% on changed lines (artifact: %s)\n",
-			cfg.Gates.DiffCoverage.MinPercent, cfg.Gates.DiffCoverage.Artifact)
-	}
-	if cfg.Gates.IntentCheck.Enabled {
-		fmt.Printf("  intent         warn    provider: %s (fail-open)\n", cfg.Gates.IntentCheck.Provider)
-	}
-	for _, p := range cfg.Gates.Plugins {
-		fmt.Printf("  plugin/%-8s error   exec: %s\n", p.Name, p.Exec)
-	}
 	return nil
 }

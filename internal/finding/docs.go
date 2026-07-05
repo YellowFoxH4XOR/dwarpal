@@ -18,18 +18,8 @@ func DocsURL(gate, ruleID string) string {
 	return docsBase + slug + ".md"
 }
 
-// docsSlug maps gate/rule identifiers to their page slug. Pages are one-per-
-// rule except architecture_rules and plugins, whose rule IDs are user-defined
-// and share a generic page each.
+// docsSlug maps a gate/rule identifier to its page slug (one page per rule).
 func docsSlug(gate, ruleID string) string {
-	switch gate {
-	case "architecture_rules":
-		return "architecture-rules"
-	default:
-		if strings.HasPrefix(gate, "plugin/") || gate == "plugin" {
-			return "plugin-exit-nonzero"
-		}
-	}
 	if gate == "" || ruleID == "" {
 		return ""
 	}

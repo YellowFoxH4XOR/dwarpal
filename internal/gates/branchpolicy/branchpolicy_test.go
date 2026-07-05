@@ -4,13 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 )
 
 func run(t *testing.T, g *Gate) int {
 	t.Helper()
-	fs, err := g.Run(context.Background(), &gitio.Diff{}, engine.NoIndex{})
+	fs, err := g.Run(context.Background(), &gitio.Diff{})
 	if err != nil {
 		t.Fatal(err)
 	}

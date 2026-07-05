@@ -15,11 +15,6 @@ quickstart; this tree is the reference.
 - **[Rule reference](rules/)** — one page per rule: what it catches, why it
   exists, how to fix findings (`dwarpal explain <rule>` shows the same
   rationale in the terminal)
-- **Recipes**
-  - [Coverage artifacts per stack](recipes/coverage.md) — feeding the
-    diff-coverage gate from Go, Jest/Vitest, pytest, JaCoCo, SimpleCov, coverlet
-- **[Agent-authored config](agent-config.md)** — let your coding agent write and
-  maintain `.dwarpal.yml` from `dwarpal analyze`, instead of hand-tuning YAML
 - **Agents** — `dwarpal agent setup <tool>` wires the pre-flight loop, an
   instruction block, and a native **Agent Skill** (`.claude/skills` for Claude
   Code, the shared `.agents/skills` for the rest)
@@ -38,9 +33,8 @@ quickstart; this tree is the reference.
 `dwarpal check` extracts the staged diff (or `--range`, or `--diff <patch>`),
 detects whether the change is agent-authored (env var → `Co-Authored-By`
 trailer → branch prefix → configurable heuristics), and runs the enabled gates
-— diff budget, branch policy, AI-pattern rules, scope, coverage, drift,
-optional LLM intent, exec plugins, and your own `architecture_rules`.
-Deterministic gates fail closed; only the LLM gate fails open. Exit codes are
-a contract: `0` pass, `1` blocked, `2` config/internal error. `--json` (alias
-`--explain-for-agent`) emits `{result, findings, summary, retry_hints}` so the
-agent that caused the block can read why and fix its own mistake.
+— diff budget, branch policy, AI-pattern rules, and scope. Every gate is
+deterministic and fails closed. Exit codes are a contract: `0` pass, `1`
+blocked, `2` config/internal error. `--json` (alias `--explain-for-agent`)
+emits `{result, findings, summary, retry_hints}` so the agent that caused the
+block can read why and fix its own mistake.

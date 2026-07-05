@@ -14,9 +14,8 @@ This does three things:
    `AGENTGATE_AGENT="Claude Code"`, never bypass.
 2. **Agent Skill at `.claude/skills/dwarpal/SKILL.md`** — a native, on-demand
    skill (invoke with `/dwarpal`, or Claude auto-loads it when committing or
-   editing config) with the full workflow: the pre-flight check→fix loop and
-   authoring `.dwarpal.yml` from `dwarpal analyze`. Committed with the repo, so
-   the whole team's Claude Code shares it.
+   editing config) with the full workflow: the pre-flight check→fix loop.
+   Committed with the repo, so the whole team's Claude Code shares it.
 3. **PreToolUse hook in `.claude/settings.json`** — before any `git commit`
    Bash call, the gate runs; if it blocks, the machine-readable JSON goes to
    the model as the hook's deny-reason. Claude sees *why* and fixes the

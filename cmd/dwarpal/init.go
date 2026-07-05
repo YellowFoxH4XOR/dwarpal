@@ -11,8 +11,9 @@ import (
 	"github.com/YellowFoxH4XOR/dwarpal/internal/hooks"
 )
 
-// starterConfig is written by `dwarpal init`. It documents the defaults so a
-// new user sees the knobs without reading the docs.
+// starterConfig is written by `dwarpal init`. The compiled-in defaults already
+// cover everything here — this file exists only so a new user sees the knobs.
+// Dwarpal runs with no config at all if you delete it.
 const starterConfig = `version: 1
 mode: enforce            # enforce | warn | ci_strict
 
@@ -37,44 +38,16 @@ gates:
   scope:
     require_task_manifest: false
     allow_always: ["**/*.lock", "**/__snapshots__/**"]
-  convention_drift:
-    enabled: true
-    severity: info
-  duplicate:
-    enabled: false             # opt-in: builds the repo function index (Go)
-    threshold: 0.85
-  # diff_coverage:
-  #   min_percent: 70
-  #   artifact: "coverage/lcov.info"
-  # intent_check:              # BYO key via DWARPAL_LLM_API_KEY; fail-open
-  #   enabled: true
-  #   provider: openai-compatible
-  #   endpoint: ""
-  #   model: ""
-  # plugins:
-  #   - name: gitleaks
-  #     exec: "gitleaks protect --staged"
 `
 
 func newInitCmd() *cobra.Command {
-	var learn bool
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "init",
 		Short: "Set up Dwarpal in this repo: write config and install git hooks",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if learn {
-				// --learn prints the analysis first, then does the normal init.
-				// The agent (or you) then edits .dwarpal.yml to match the facts.
-				if err := runAnalyze(false); err != nil {
-					return err
-				}
-				fmt.Println()
-			}
 			return runInit()
 		},
 	}
-	cmd.Flags().BoolVar(&learn, "learn", false, "print `dwarpal analyze` facts before init, to guide config authoring")
-	return cmd
 }
 
 func runInit() error {

@@ -4,7 +4,7 @@ exec git init
 
 # human view: a table with every rule and a pass count
 exec dwarpal rules test
-stdout 'no-hardcoded-secrets/aws-key'
+stdout 'no-new-lint-suppressions'
 stdout 'STATUS'
 stdout 'rules pass their example tests'
 

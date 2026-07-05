@@ -6,4 +6,4 @@ stderr 'invalid severity'
 -- .dwarpal.yml --
 version: 1
 rule_overrides:
-  "ai_patterns/no-sql-concat": "silent"
+  "ai_patterns/no-broad-catch": "silent"
