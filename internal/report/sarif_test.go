@@ -46,6 +46,48 @@ func TestSARIF_ShapeAndLevels(t *testing.T) {
 	}
 }
 
+// Regression: EVERY result must carry at least one location, or GitHub Code
+// Scanning rejects the whole file ("locationFromSarifResult: expected at least
+// one location"). File-less findings (diff_budget, branch_policy describe the
+// whole change, not one file) are anchored to the policy file. Caught live by
+// the dogfood Action gate on the strip-to-wedge PR, whose oversized diff was the
+// first to trip a file-less diff_budget finding under --sarif.
+func TestSARIF_EveryResultHasLocation(t *testing.T) {
+	in := Input{
+		Result: ResultBlocked,
+		Findings: []finding.Finding{
+			{Gate: "diff_budget", RuleID: "max-lines", Severity: finding.SeverityError, Message: "too big"},
+			{Gate: "branch_policy", RuleID: "protected-branch", Severity: finding.SeverityError, Message: "agent on main"},
+			{Gate: "ai_patterns", RuleID: "no-broad-catch", Severity: finding.SeverityWarn, Message: "bare catch", File: "a.go", Line: 12},
+		},
+	}
+	var buf bytes.Buffer
+	if err := SARIF(&buf, in); err != nil {
+		t.Fatal(err)
+	}
+
+	var log struct {
+		Runs []struct {
+			Results []struct {
+				RuleID    string `json:"ruleId"`
+				Locations []any  `json:"locations"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &log); err != nil {
+		t.Fatalf("not valid JSON: %v", err)
+	}
+	for _, r := range log.Runs[0].Results {
+		if len(r.Locations) == 0 {
+			t.Fatalf("result %q has no location — CodeQL rejects this", r.RuleID)
+		}
+	}
+	// File-less findings anchor to the policy file.
+	if !strings.Contains(buf.String(), `"uri": "`+diffLevelAnchor+`"`) {
+		t.Fatalf("file-less finding not anchored to %s:\n%s", diffLevelAnchor, buf.String())
+	}
+}
+
 // Regression: a zero-finding run must marshal rules/results as [] (not null) —
 // GitHub's SARIF upload rejects "rules is not of a type(s) array". Caught live
 // by the first real Action run on PR #3.

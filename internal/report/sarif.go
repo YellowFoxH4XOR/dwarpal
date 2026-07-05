@@ -14,6 +14,13 @@ import (
 // We emit the minimal valid subset: one run, one tool driver (dwarpal), the
 // distinct rules seen, and one result per finding with a file:line location.
 
+// diffLevelAnchor is where file-less findings (diff_budget, branch_policy —
+// they describe the whole change, not one file) are anchored in SARIF. Every
+// result MUST carry at least one location or GitHub Code Scanning rejects the
+// whole file ("expected at least one location"); the policy file is the natural
+// place for a reviewer to land, since that is where those rules are configured.
+const diffLevelAnchor = ".dwarpal.yml"
+
 const sarifSchema = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 
 type sarifLog struct {
@@ -101,15 +108,17 @@ func SARIF(w io.Writer, in Input) error {
 			Level:   sarifLevel(f.Severity),
 			Message: sarifMessage{Text: f.Message},
 		}
-		if f.File != "" {
-			loc := sarifLocation{PhysicalLocation: sarifPhysicalLocation{
-				ArtifactLocation: sarifArtifactLocation{URI: f.File},
-			}}
-			if f.Line > 0 {
-				loc.PhysicalLocation.Region = &sarifRegion{StartLine: f.Line}
-			}
-			res.Locations = []sarifLocation{loc}
+		uri := f.File
+		if uri == "" {
+			uri = diffLevelAnchor // file-less finding — anchor to the policy file
 		}
+		loc := sarifLocation{PhysicalLocation: sarifPhysicalLocation{
+			ArtifactLocation: sarifArtifactLocation{URI: uri},
+		}}
+		if f.File != "" && f.Line > 0 {
+			loc.PhysicalLocation.Region = &sarifRegion{StartLine: f.Line}
+		}
+		res.Locations = []sarifLocation{loc}
 		results = append(results, res)
 	}
 
