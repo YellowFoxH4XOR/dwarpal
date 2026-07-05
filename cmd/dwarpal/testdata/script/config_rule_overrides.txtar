@@ -1,10 +1,10 @@
 # rule_overrides: a valid severity reassignment loads and is surfaced by `rules`.
 exec git init
 exec dwarpal rules
-stdout 'no-sql-concat'
+stdout 'no-broad-catch'
 stdout 'severity override: warn'
 
 -- .dwarpal.yml --
 version: 1
 rule_overrides:
-  "ai_patterns/no-sql-concat": "warn"
+  "ai_patterns/no-broad-catch": "warn"

@@ -44,9 +44,9 @@ func skillDoc(t Tool) string {
 name: %s
 description: >-
   Work with the Dwarpal commit gate in this repo: run the pre-flight check
-  before committing and act on its retry hints, author or update .dwarpal.yml
-  from `+"`dwarpal analyze`"+`, and never bypass the gate. Use when committing,
-  when a commit is blocked, or when setting up or adjusting Dwarpal config.
+  before committing and act on its retry hints, author or update .dwarpal.yml,
+  and never bypass the gate. Use when committing, when a commit is blocked, or
+  when setting up or adjusting Dwarpal config.
 ---
 
 # Working with Dwarpal in this repository
@@ -79,21 +79,16 @@ so provenance detection is exact.
 
 ## Authoring or updating .dwarpal.yml (you are the config author)
 
-Dwarpal never calls an LLM locally — you are its judgment layer. When asked to
-set up Dwarpal or adjust its config:
+Dwarpal never calls an LLM — every gate is deterministic and offline, and you
+are its judgment layer. When asked to set up Dwarpal or adjust its config:
 
-1. `+"`dwarpal analyze --json`"+` — deterministic repo facts: conventions, a diff
-   budget fitted to the repo's own commit-size distribution (with the full
-   median/p75/p90/max spread), detected coverage artifacts, security tools,
-   branch prefixes, and layering signals. No network; touches no config/source.
-2. Read the codebase for what analyze can't infer: real layer boundaries (→
-   `+"`architecture_rules`"+`), generated paths (→ `+"`diff_budget.overrides`"+`),
-   sane scope.
-3. Author or update `+"`.dwarpal.yml`"+` from both. Prefer analyze's suggestions
-   over generic defaults; use the distribution to sanity-check the budget.
-   Comment each non-obvious rule. Do not invent rules the codebase doesn't
-   support.
-4. Verify: `+"`dwarpal rules`"+` prints the effective ruleset; `+"`dwarpal check`"+`
+1. Read the codebase to set the knobs that fit it: a `+"`diff_budget`"+` sized to
+   this repo's normal commits, `+"`diff_budget.overrides`"+` for generated paths,
+   the protected branches, and sane scope defaults.
+2. Author or update `+"`.dwarpal.yml`"+`. The compiled-in defaults are sensible —
+   only override what this repo actually needs, and comment each non-obvious
+   choice. Do not invent config the schema doesn't support.
+3. Verify: `+"`dwarpal rules`"+` prints the effective ruleset; `+"`dwarpal check`"+`
    must still pass on a clean tree.
 
 ## Understand a rule

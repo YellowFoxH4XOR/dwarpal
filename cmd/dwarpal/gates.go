@@ -4,30 +4,17 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
-	"github.com/YellowFoxH4XOR/dwarpal/internal/census"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/aipatterns"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/archrules"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/branchpolicy"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/diffbudget"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/diffcoverage"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/drift"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/duplicate"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/intent"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/plugin"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gates/scope"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/provenance"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/repoindex"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/taskmanifest"
 )
-
-// llmAPIKeyEnv is where the intent gate reads its provider key — never config.
-const llmAPIKeyEnv = "DWARPAL_LLM_API_KEY"
 
 // overrideEnv lists rule IDs (comma-separated) a human has approved skipping
 // for this run — the staged-mode counterpart of the Dwarpal-Override trailer
@@ -35,14 +22,17 @@ const llmAPIKeyEnv = "DWARPAL_LLM_API_KEY"
 const overrideEnv = "DWARPAL_OVERRIDE"
 
 // overrideTrailer is the commit-message trailer that approves skipping a rule
-// for the commits that carry it (PRD Gate 3: "unless the commit ... carries an
-// approved override trailer"). Only meaningful in --range mode.
+// for the commits that carry it. Only meaningful in --range mode.
 const overrideTrailer = "Dwarpal-Override:"
 
 // collectOverrides gathers approved rule overrides from the env var and, when
 // a range is being checked, from Dwarpal-Override trailers in that range's
-// commit messages.
-func collectOverrides(root, rangeArg string) []string {
+// commit messages. In ci_strict mode neither is honored — the whole point of
+// ci_strict is that a local escape hatch carries no authority.
+func collectOverrides(root, rangeArg string, mode config.Mode) []string {
+	if mode == config.ModeCIStrict {
+		return nil
+	}
 	var out []string
 	for _, id := range strings.Split(os.Getenv(overrideEnv), ",") {
 		if id = strings.TrimSpace(id); id != "" {
@@ -66,18 +56,6 @@ func collectOverrides(root, rangeArg string) []string {
 	return out
 }
 
-// buildGates assembles the gate pipeline for a run, applying the provenance
-// filter. Branch policy always participates (it self-no-ops for human commits);
-// the content gates run only when this commit is in scope for gating —
-// i.e. all-commits mode, or agent-only mode and the change is agent-authored.
-// This is the R2 mitigation: human commits stay untouched by default.
-func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
-	return buildGatesForDiff(root, cfg, overrides, nil)
-}
-
-// buildGatesForDiff additionally knows the diff, letting expensive setup skip
-// when irrelevant: the repo index is only built when the diff actually touches
-// a language its consumer gates can score.
 // severityOverrides converts the config's rule_overrides (map of "gate/rule_id"
 // → severity string) into the typed map the engine applies. Invalid severities
 // are already rejected by config.validate, so this is a pure conversion.
@@ -92,7 +70,12 @@ func severityOverrides(cfg config.Config) map[string]finding.Severity {
 	return out
 }
 
-func buildGatesForDiff(root string, cfg config.Config, overrides []string, d *gitio.Diff) ([]engine.Gate, provenance.Provenance, engine.RepoIndex) {
+// buildGates assembles the gate pipeline for a run, applying the provenance
+// filter. Branch policy always participates (it self-no-ops for human commits);
+// the content gates run only when this commit is in scope for gating — all-
+// commits mode, or agent-only mode and the change is agent-authored. This is
+// the R2 mitigation: human commits stay untouched by default.
+func buildGates(root string, cfg config.Config, overrides []string) ([]engine.Gate, provenance.Provenance) {
 	branch := currentBranch(root)
 	prov := provenance.New(cfg.Provenance.BranchPrefixes, cfg.Provenance.Trailers).
 		WithHeuristics(cfg.Provenance.Heuristics).
@@ -100,133 +83,36 @@ func buildGatesForDiff(root string, cfg config.Config, overrides []string, d *gi
 
 	applyContent := cfg.Provenance.ApplyGatesTo == config.ApplyAllCommits || prov.IsAgent
 
-	var idx engine.RepoIndex = engine.NoIndex{}
-
 	// Branch policy is always present (only fires for agents on protected branches).
 	gates := []engine.Gate{
 		branchpolicy.New(cfg.Gates.BranchPolicy.Protected, branch, prov.IsAgent),
 	}
 	if !applyContent {
-		return gates, prov, idx
+		return gates, prov
 	}
 
 	gates = append(gates, diffbudget.New(cfg.Gates.DiffBudget))
+
 	if cfg.Gates.AIPatterns.Enabled {
 		// Approved overrides (trailer/env) skip their rules for this run only —
 		// unlike disable_rules, they are per-commit escapes, not policy.
 		disables := append(append([]string{}, cfg.Gates.AIPatterns.DisableRules...), overrides...)
-		gates = append(gates, aipatterns.New(root, disables))
+		gates = append(gates, aipatterns.New(disables))
 	}
+
 	// Scope reads the declared task manifest when present; absent, it is
-	// warn-only unless the config requires a manifest. The manifest's task id
-	// doubles as the intent text for Gate 7 (#42).
+	// warn-only unless the config requires a manifest.
 	var scopePaths []string
-	taskIntent := ""
-	if m, ok, _ := taskmanifest.Load(root); ok {
+	if m, ok, err := taskmanifest.Load(root); err != nil {
+		// A malformed manifest is a misconfiguration, not "no manifest" — fail
+		// loud rather than silently dropping scope enforcement.
+		os.Stderr.WriteString("dwarpal: " + err.Error() + "\n")
+	} else if ok {
 		scopePaths = m.Paths
-		taskIntent = m.ID
-	} else if ref := taskmanifest.TicketFromBranch(branch); ref != "" {
-		taskIntent = ref // #31: ticket reference in the branch name as fallback identity
 	}
 	gates = append(gates, scope.New(scopePaths, cfg.Gates.Scope.AllowAlways, cfg.Gates.Scope.RequireTaskManifest))
 
-	// Gate 5 is active only when a coverage artifact is configured.
-	if cov := cfg.Gates.DiffCoverage; cov.Artifact != "" {
-		min := cov.MinPercent
-		if min == 0 {
-			min = 70 // PRD default
-		}
-		gates = append(gates, diffcoverage.New(cov.Artifact, min, root))
-	}
-
-	// Gate 7 (intent) is opt-in and BYO-key; it never blocks on infra failure.
-	if ic := cfg.Gates.IntentCheck; ic.Enabled {
-		if g := buildIntentGate(ic, taskIntent); g != nil {
-			gates = append(gates, g)
-		}
-	}
-
-	// Gates 3 (duplicate) and 6 (drift) need the repo function index. Build it
-	// once, only when at least one is enabled, so the p95 budget is untouched
-	// otherwise. (Incremental caching under .dwarpal/cache/ is future work — B1.)
-	dup := cfg.Gates.Duplicate
-	drf := cfg.Gates.ConventionDrift
-	if (dup.Enabled || drf.Enabled) && diffTouchesIndexedLanguage(d) {
-		if built, err := repoindex.BuildFor(root, dup.Enabled); err == nil {
-			idx = built
-		}
-	}
-	if dup.Enabled {
-		threshold := dup.Threshold
-		if threshold == 0 {
-			threshold = 0.85
-		}
-		gates = append(gates, duplicate.New(root, threshold))
-	}
-	if drf.Enabled {
-		gates = append(gates, drift.New(root, finding.Severity(drf.Severity)))
-	}
-
-	// User-defined architecture rules (#47, PRD §5.3): forbidden-call
-	// assertions evaluated over go/ast on added lines.
-	if len(cfg.ArchRules) > 0 {
-		rules := make([]archrules.Rule, len(cfg.ArchRules))
-		for i, r := range cfg.ArchRules {
-			rules[i] = archrules.Rule{
-				ID: r.ID, Description: r.Description, Language: r.Language,
-				Matches: r.Matches, ForbiddenOutside: r.ForbiddenOutside, Severity: r.Severity,
-			}
-		}
-		gates = append(gates, archrules.New(root, rules))
-	}
-
-	for _, p := range cfg.Gates.Plugins {
-		exec := p.Exec
-		if p.Preset != "" {
-			// config.validate already guaranteed a known diff-local preset.
-			if d, ok := census.Lookup(p.Preset); ok {
-				exec = d.Command
-			}
-		}
-		gates = append(gates, plugin.New(p.Name, exec, p.When, root))
-	}
-	return gates, prov, idx
-}
-
-// diffTouchesIndexedLanguage reports whether any changed file is in a language
-// the index consumers (duplicate, drift) can score. nil diff = unknown caller:
-// build the index (safe default).
-func diffTouchesIndexedLanguage(d *gitio.Diff) bool {
-	if d == nil {
-		return true
-	}
-	for _, f := range d.Files {
-		if repoindex.FunctionsFor(f.Path) != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// buildIntentGate constructs the LLM intent gate from config + the env-held API
-// key. Returns nil (gate omitted) when no key is available, so a misconfigured
-// intent gate never silently half-works.
-func buildIntentGate(ic config.IntentCheck, taskIntent string) engine.Gate {
-	key := os.Getenv(llmAPIKeyEnv)
-	if key == "" {
-		return nil
-	}
-	timeout := time.Duration(ic.TimeoutSeconds) * time.Second
-	if timeout == 0 {
-		timeout = 30 * time.Second // PRD default
-	}
-	var provider intent.Provider
-	if ic.Provider == "anthropic" {
-		provider = intent.NewAnthropicProvider(ic.Model, key)
-	} else {
-		provider = intent.NewOpenAIProvider(ic.Endpoint, ic.Model, key)
-	}
-	return intent.New(provider, taskIntent, timeout)
+	return gates, prov
 }
 
 // currentBranch returns the current branch name, or "" if it cannot be

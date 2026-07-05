@@ -17,25 +17,12 @@ import (
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 )
 
-// RepoIndex is the repo-level context that stateful gates (duplicate-function,
-// drift) will need. In M0 no gate uses it, but the Gate signature takes it now
-// so adding those gates later never changes the interface. The concrete M0
-// implementation is NoIndex.
-type RepoIndex interface {
-	// Ready reports whether the index has been built. M0's NoIndex returns false.
-	Ready() bool
-}
-
-// NoIndex is the M0 placeholder RepoIndex.
-type NoIndex struct{}
-
-func (NoIndex) Ready() bool { return false }
-
-// Gate is the contract every check implements — the same interface that exec
-// plugins will satisfy later, so community gates need not touch the engine.
+// Gate is the contract every check implements. Every gate reads only the diff
+// (and any commit context injected at construction), so gates are pure and can
+// run concurrently.
 type Gate interface {
 	ID() string
-	Run(ctx context.Context, d *gitio.Diff, idx RepoIndex) ([]finding.Finding, error)
+	Run(ctx context.Context, d *gitio.Diff) ([]finding.Finding, error)
 }
 
 // GateError records a gate that failed to run. It is surfaced, not swallowed.
@@ -109,22 +96,22 @@ func postProcess(fs []finding.Finding, opts Options) []finding.Finding {
 }
 
 // Run executes the gates against the diff and aggregates everything.
-func Run(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex) Result {
-	return RunWith(ctx, gates, d, idx, Options{})
+func Run(ctx context.Context, gates []Gate, d *gitio.Diff) Result {
+	return RunWith(ctx, gates, d, Options{})
 }
 
 // RunWith executes the gates with explicit options.
 //
 // In the default report-everything mode gates run CONCURRENTLY (they only read
-// the diff, the index, and the work tree) and their results are folded back in
-// gate order, so output stays deterministic regardless of completion order.
-// StopOnFirstBlock forces sequential execution — its whole point is that later
-// gates never run after a block.
-func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, opts Options) Result {
+// the diff and the work tree) and their results are folded back in gate order,
+// so output stays deterministic regardless of completion order. StopOnFirstBlock
+// forces sequential execution — its whole point is that later gates never run
+// after a block.
+func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, opts Options) Result {
 	if opts.StopOnFirstBlock {
 		var res Result
 		for _, g := range gates {
-			fs, err := g.Run(ctx, d, idx)
+			fs, err := g.Run(ctx, d)
 			if err != nil {
 				res.GateErrors = append(res.GateErrors, GateError{Gate: g.ID(), Err: err})
 			} else {
@@ -147,7 +134,7 @@ func RunWith(ctx context.Context, gates []Gate, d *gitio.Diff, idx RepoIndex, op
 		wg.Add(1)
 		go func(i int, g Gate) {
 			defer wg.Done()
-			fs, err := g.Run(ctx, d, idx)
+			fs, err := g.Run(ctx, d)
 			results[i] = gateResult{findings: fs, err: err}
 		}(i, g)
 	}

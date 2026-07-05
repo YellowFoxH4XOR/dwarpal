@@ -7,8 +7,7 @@ exec dwarpal agent setup claude-code
 exists CLAUDE.md
 grep 'dwarpal:begin' CLAUDE.md
 grep 'explain-for-agent' CLAUDE.md
-# the block also teaches the agent to author the config from `dwarpal analyze`
-grep 'dwarpal analyze --json' CLAUDE.md
+# the block also teaches the agent to author and maintain the config
 grep 'you are the config author' CLAUDE.md
 exists .claude/settings.json
 grep 'PreToolUse' .claude/settings.json
@@ -16,7 +15,7 @@ grep 'git commit' .claude/settings.json
 # and a native Claude Code skill under .claude/skills
 exists .claude/skills/dwarpal/SKILL.md
 grep 'name: dwarpal' .claude/skills/dwarpal/SKILL.md
-grep 'dwarpal analyze' .claude/skills/dwarpal/SKILL.md
+grep 'config author' .claude/skills/dwarpal/SKILL.md
 
 # re-run: no duplicates
 exec dwarpal agent setup claude-code

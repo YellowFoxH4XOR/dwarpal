@@ -16,7 +16,7 @@ type stubGate struct {
 }
 
 func (s stubGate) ID() string { return s.id }
-func (s stubGate) Run(context.Context, *gitio.Diff, RepoIndex) ([]finding.Finding, error) {
+func (s stubGate) Run(context.Context, *gitio.Diff) ([]finding.Finding, error) {
 	*s.ran = true
 	return s.out, nil
 }
@@ -31,7 +31,7 @@ func TestRun_ReportEverythingDefault(t *testing.T) {
 	res := Run(context.Background(), []Gate{
 		stubGate{"g1", block("g1"), &a},
 		stubGate{"g2", block("g2"), &b},
-	}, &gitio.Diff{}, NoIndex{})
+	}, &gitio.Diff{})
 	if !a || !b {
 		t.Fatalf("both gates should run by default (a=%v b=%v)", a, b)
 	}
@@ -46,7 +46,7 @@ func TestRunWith_StopOnFirstBlock(t *testing.T) {
 	res := RunWith(context.Background(), []Gate{
 		stubGate{"g1", block("g1"), &a},
 		stubGate{"g2", block("g2"), &b},
-	}, &gitio.Diff{}, NoIndex{}, Options{StopOnFirstBlock: true})
+	}, &gitio.Diff{}, Options{StopOnFirstBlock: true})
 	if !a {
 		t.Fatal("first gate should run")
 	}
@@ -70,7 +70,7 @@ func TestRun_ParallelPreservesOrder(t *testing.T) {
 		})
 	}
 	for run := 0; run < 5; run++ {
-		res := Run(context.Background(), gates, &gitio.Diff{}, NoIndex{})
+		res := Run(context.Background(), gates, &gitio.Diff{})
 		if len(res.Findings) != 8 {
 			t.Fatalf("want 8 findings, got %d", len(res.Findings))
 		}

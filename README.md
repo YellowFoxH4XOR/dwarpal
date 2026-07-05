@@ -5,15 +5,16 @@
 The name is Sanskrit/Hindi (द्वारपाल) for the guardian at a temple door — the
 figure who decides who passes.
 
-Dwarpal is an open-source, agent-agnostic pre-commit quality firewall for
-AI-authored code. It sits between your coding agent and your repository,
-running deterministic gates on every staged diff before a commit lands. It
-installs as a git hook, so it works with any agent that drives git — Claude
-Code, Cursor, Aider, Devin, Copilot — no SDK integration required.
+Dwarpal is an open-source, deterministic guardrail for **AI-authored** code. It
+knows which changes an agent wrote — by `agent/*` branch prefix, `Co-Authored-By`
+trailer, or configurable heuristic — and runs a small set of agent-specific
+checks on *those* diffs, leaving human commits alone. It wires into your coding
+agent's own hooks (Claude Code, Codex, OpenCode, Pi) so the agent reads *why* it
+was blocked and fixes its own mistake **before a commit or PR exists**, with a
+git-hook and CI backstop for enforcement.
 
-Blocked commits read: **"Dwarpal stopped this at the gate."** And every block
-carries machine-readable `retry_hints`, so your agent can read *why* it was
-blocked and fix its own mistake.
+Every finding carries a machine-readable `retry_hint` — the whole point is
+in-loop self-correction, not a wall the agent hits.
 
 ## Install
 
@@ -53,42 +54,31 @@ dwarpal rules     # shows every active gate and rule
 
 ## The gates
 
+Four checks, each an *agent* failure mode a generic linter doesn't look for —
+not a re-implementation of gitleaks or semgrep:
+
 | Gate | Catches | Default |
 |---|---|---|
-| `diff_budget` | Oversized, unreviewable diffs | 500 lines / 20 files / 10 new |
+| `diff_budget` | Oversized, unreviewable diffs (agents love these) | 500 lines / 20 files / 10 new |
 | `branch_policy` | Agent commits straight to `main`/`release/*` | error |
-| `ai_patterns` | Lint suppressions, hardcoded secrets, string-built SQL, broad catches, near-duplicate functions | error/warn |
+| `ai_patterns` | A newly added lint/type suppression, or a broadened catch that swallows the error blocking the agent | error/warn |
 | `scope` | Files outside the declared task (`dwarpal task <id> --paths ...`) | error |
-| `diff_coverage` | Under-tested changed lines (lcov/cobertura/go-cover) | opt-in |
-| `convention_drift` | Fluent-but-foreign code — naming, size, imports, error idioms | info |
-| `intent` | "Does this diff do *only* what was asked?" (LLM, BYO key, fail-open) | off |
-| `plugin` | Your existing tools — semgrep, gitleaks, anything with an exit code | opt-in |
-| `architecture_rules` | *Your own* layering assertions (e.g. no DB calls outside `internal/repo`) | opt-in |
 
-The `ai_patterns` and `convention_drift` rows are rule packs: `ai_patterns`
-covers lint-suppressions, secrets (shape + entropy), SQL concatenation, broad
-exception catches, and **near-duplicate functions** (real syntax-tree analysis
-for Go/TS/TSX/Python); `convention_drift` scores added code against your repo's
-own naming, function-size, import-style, and error-idiom norms.
-
-Gates apply to **every commit by default** — quality rules that only bind
-some authors invite drift. Teams that want human commits exempt opt out with
+Gates apply to **every commit by default** — quality rules that only bind some
+authors invite drift. Teams that want human commits exempt opt out with
 `apply_gates_to: agent-only` (agents detected via env var, `Co-Authored-By`
-trailers, `agent/*` branch prefix, or configurable heuristics). Deterministic
-gates fail closed; only the LLM gate fails open.
+trailers, `agent/*` branch prefix, or configurable heuristics). Every gate is
+deterministic and fails closed — no LLM, no network, nothing to flake.
 
-Local hooks are developer experience, not security: agents can `--no-verify`.
-That's why the pre-push hook verifies every pushed commit passed the gate, and
-why `mode: ci_strict` + the GitHub Action are the real enforcement:
-
-```yaml
-- uses: YellowFoxH4XOR/dwarpal/action@v1   # SARIF annotations on the PR
-```
+Secrets scanning, arbitrary AST assertions, coverage gates, and dead-code
+ratchets are deliberately **out of scope** — gitleaks, semgrep, your coverage
+tool, and your CI already own those. Dwarpal only does the part that's specific
+to guarding an agent.
 
 ## Use it inside your agent
 
-The gate is better as part of the agent's loop than as a wall it hits.
-One command per tool:
+This is the primary surface. One command per tool wires Dwarpal into the agent's
+own hooks so it self-corrects in-session:
 
 ```sh
 dwarpal agent setup claude-code   # CLAUDE.md block + PreToolUse pre-flight hook
@@ -97,9 +87,20 @@ dwarpal agent setup opencode      # AGENTS.md block
 dwarpal agent setup pi            # AGENTS.md block
 ```
 
-The agent learns to pre-flight (`dwarpal check --explain-for-agent`), read
-`retry_hints`, and fix its own mistakes *before* committing. Claude Code
+The agent learns to pre-flight (`dwarpal check --explain-for-agent`), read the
+`retry_hint`, and fix its own mistakes *before* committing. Claude Code
 additionally gets a hook that feeds block-reasons straight back to the model.
+
+## Enforcement backstop
+
+Local hooks are developer experience, not security: agents can `--no-verify`.
+That's why the pre-push hook verifies every pushed commit passed the gate, and
+why `mode: ci_strict` + the GitHub Action are the real enforcement (and where
+local override escapes carry no authority):
+
+```yaml
+- uses: YellowFoxH4XOR/dwarpal/action@v1   # SARIF annotations on the PR
+```
 
 ## Configuration
 
@@ -114,16 +115,14 @@ note); rejected under `ci_strict`.
 - [CLI reference](docs/cli.md) — every command and flag
 - [Configuration reference](docs/configuration.md) — every `.dwarpal.yml` key
 - [Rule reference](docs/rules/) — every rule: what, why, how to fix (also via `dwarpal explain`)
-- [Coverage recipes](docs/recipes/coverage.md) — Go, Jest, Vitest, pytest, JaCoCo, SimpleCov, coverlet
 - Agents: [Claude Code](docs/integrations/claude-code.md) · [Codex](docs/integrations/codex.md) · [OpenCode](docs/integrations/opencode.md) · [Pi](docs/integrations/pi.md)
 - Integrations: [GitHub Actions](docs/integrations/github-actions.md) · [GitLab CI](docs/integrations/gitlab.md) · [pre-commit framework](docs/integrations/pre-commit.md) · [Docker](docs/integrations/docker.md)
 - [Why harnesses beat prompts](docs/why-harnesses-beat-prompts.md) — the philosophy
 
 ## Trust promises
 
-No telemetry, ever. No network calls in default operation — the only component
-that can make one is the opt-in intent gate, and only to the provider you
-configure. Your diff never leaves your machine otherwise.
+No telemetry, ever. No network calls — every gate is deterministic and offline.
+Your diff never leaves your machine.
 
 ## Contributing
 

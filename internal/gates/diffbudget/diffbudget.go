@@ -18,7 +18,6 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/config"
-	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 )
@@ -55,7 +54,7 @@ type group struct {
 
 // Run measures the diff against the global budget and any per-glob overrides,
 // emitting one error finding per exceeded budget.
-func (g *Gate) Run(_ context.Context, d *gitio.Diff, _ engine.RepoIndex) ([]finding.Finding, error) {
+func (g *Gate) Run(_ context.Context, d *gitio.Diff) ([]finding.Finding, error) {
 	global := budget{
 		label:       "global",
 		maxLines:    g.cfg.MaxLines,

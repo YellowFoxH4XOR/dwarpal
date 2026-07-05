@@ -43,14 +43,14 @@ loop that's allowed to say no.
 
 Three principles keep a harness trusted enough that nobody rips it out:
 
-1. **Deterministic gates fail closed; only the LLM gate fails open.** A
-   provider outage must never block a commit; a config typo must never
-   silently weaken a gate.
-2. **Heuristics confess.** Drift and duplicate detection ship at `info`/`warn`
+1. **Every gate is deterministic and fails closed.** No LLM, no network,
+   nothing to flake; a config typo must never silently weaken a gate.
+2. **Heuristics confess.** Rules that are approximate ship at `warn`/`info`
    severity — a harness that cries wolf gets uninstalled (`dwarpal feedback`
    exists because false positives are *our* bugs).
 3. **Escape hatches are audited, not hidden.** `bypass` and `Dwarpal-Override`
-   work — and leave a paper trail (log + git note) every time.
+   work — and leave a paper trail (log + git note) every time, except under
+   `ci_strict` where they carry no authority at all.
 
 ## The one-line version
 

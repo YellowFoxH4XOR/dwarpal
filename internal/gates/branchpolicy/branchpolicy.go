@@ -14,7 +14,6 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/gitio"
 )
@@ -38,7 +37,7 @@ func (g *Gate) ID() string { return gateID }
 
 // Run blocks when an agent-authored change targets a protected branch. Human
 // commits are never blocked by this gate.
-func (g *Gate) Run(_ context.Context, _ *gitio.Diff, _ engine.RepoIndex) ([]finding.Finding, error) {
+func (g *Gate) Run(_ context.Context, _ *gitio.Diff) ([]finding.Finding, error) {
 	if !g.isAgent {
 		return nil, nil
 	}

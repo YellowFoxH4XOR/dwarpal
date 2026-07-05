@@ -53,8 +53,7 @@ func TestUpsertSkill_AgentsToolsShareOneFile(t *testing.T) {
 // The frontmatter must carry the universal name+description every agent's
 // parser needs; a missing description means no auto-invocation (silent
 // degradation). The body must teach the two load-bearing behaviors — pre-flight
-// check and analyze-driven config authoring — since that's the skill's reason
-// to exist.
+// check and config authoring — since that's the skill's reason to exist.
 func TestSkillDoc_FrontmatterAndIntent(t *testing.T) {
 	doc := skillDoc(ToolCodex)
 	if !strings.HasPrefix(doc, "---\nname: "+skillName+"\n") {
@@ -63,7 +62,7 @@ func TestSkillDoc_FrontmatterAndIntent(t *testing.T) {
 	for _, must := range []string{
 		"description:",
 		"dwarpal check --explain-for-agent", // the pre-flight loop
-		"dwarpal analyze",                   // config authoring
+		"config author",                     // config authoring
 		"Never bypass",                      // the non-negotiable
 	} {
 		if !strings.Contains(doc, must) {

@@ -19,8 +19,6 @@ import (
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
-
-	"github.com/YellowFoxH4XOR/dwarpal/internal/census"
 )
 
 // Mode controls whether findings block. See PRD §5.3.
@@ -39,36 +37,9 @@ type Config struct {
 	StopOnFirstBlock bool            `koanf:"stop_on_first_block"`
 	Provenance       ProvenanceBlock `koanf:"provenance"`
 	Gates            GatesBlock      `koanf:"gates"`
-	ArchRules        []ArchRule      `koanf:"architecture_rules"`
 	// RuleOverrides reassigns a rule's severity, keyed by "gate/rule_id" (e.g.
-	// "ai_patterns/no-sql-concat": "warn"). Authored by hand, by an agent, or by
-	// `dwarpal audit --apply` from the measured acted-on rate.
+	// "ai_patterns/no-broad-catch": "info"). Authored by hand or by an agent.
 	RuleOverrides map[string]string `koanf:"rule_overrides"`
-	// Census configures the whole-repo decay ratchet (`dwarpal census`). It is
-	// NOT a gate — it runs on its own O(repo) cadence, not the pre-commit path.
-	Census CensusBlock `koanf:"census"`
-}
-
-// CensusBlock configures `dwarpal census`. An empty Detectors list disables the
-// census (nothing to run). Baseline defaults to census.DefaultBaselinePath when
-// left empty.
-type CensusBlock struct {
-	Detectors []string `koanf:"detectors"`
-	Baseline  string   `koanf:"baseline"`
-}
-
-// ArchRule is one user-defined architecture assertion (PRD §5.3). Calls whose
-// rendered target matches Matches are FORBIDDEN outside the ForbiddenOutside
-// globs. Query is accepted for forward-compat with tree-sitter query syntax
-// but ignored by the v1 Go (go/parser) implementation.
-type ArchRule struct {
-	ID               string   `koanf:"id"`
-	Description      string   `koanf:"description"`
-	Language         string   `koanf:"language"`
-	Query            string   `koanf:"query"`
-	Matches          string   `koanf:"matches"`
-	ForbiddenOutside []string `koanf:"forbidden_outside"`
-	Severity         string   `koanf:"severity"`
 }
 
 // ProvenanceBlock configures agent detection and which commits gates apply to.
@@ -83,73 +54,27 @@ type ProvenanceBlock struct {
 
 // GatesBlock groups per-gate configuration.
 type GatesBlock struct {
-	DiffBudget      DiffBudget     `koanf:"diff_budget"`
-	BranchPolicy    BranchPolicy   `koanf:"branch_policy"`
-	AIPatterns      AIPatterns     `koanf:"ai_patterns"`
-	Scope           ScopeBlock     `koanf:"scope"`
-	DiffCoverage    DiffCoverage   `koanf:"diff_coverage"`
-	IntentCheck     IntentCheck    `koanf:"intent_check"`
-	Duplicate       DuplicateBlock `koanf:"duplicate"`
-	ConventionDrift DriftBlock     `koanf:"convention_drift"`
-	Plugins         []Plugin       `koanf:"plugins"`
+	DiffBudget   DiffBudget   `koanf:"diff_budget"`
+	BranchPolicy BranchPolicy `koanf:"branch_policy"`
+	AIPatterns   AIPatterns   `koanf:"ai_patterns"`
+	Scope        ScopeBlock   `koanf:"scope"`
 }
 
-// DuplicateBlock is the no-duplicate-function rule's config. Opt-in: it builds
-// the repo function index, so it is off by default to protect the p95 budget.
-type DuplicateBlock struct {
-	Enabled   bool    `koanf:"enabled"`
-	Threshold float64 `koanf:"threshold"`
-}
-
-// DriftBlock is Gate 6's config. Advisory (info) and on by default.
-type DriftBlock struct {
-	Enabled  bool   `koanf:"enabled"`
-	Severity string `koanf:"severity"`
-}
-
-// DiffCoverage is Gate 5's configuration. The gate is active only when Artifact
-// is set (Dwarpal consumes an existing coverage artifact, never runs tests).
-type DiffCoverage struct {
-	MinPercent float64 `koanf:"min_percent"`
-	Artifact   string  `koanf:"artifact"`
-}
-
-// IntentCheck is Gate 7's configuration. Off by default; the API key is read
-// from the environment, never stored in config.
-type IntentCheck struct {
-	Enabled        bool   `koanf:"enabled"`
-	Provider       string `koanf:"provider"`
-	Endpoint       string `koanf:"endpoint"`
-	Model          string `koanf:"model"`
-	TimeoutSeconds int    `koanf:"timeout_seconds"`
-}
-
-// BranchPolicy is Gate 2's protected-branch configuration.
+// BranchPolicy is the protected-branch gate's configuration.
 type BranchPolicy struct {
 	Protected []string `koanf:"protected"`
 }
 
-// AIPatterns is Gate 3's configuration.
+// AIPatterns is the AI-pattern rule pack's configuration.
 type AIPatterns struct {
 	Enabled      bool     `koanf:"enabled"`
 	DisableRules []string `koanf:"disable_rules"`
 }
 
-// ScopeBlock is Gate 4's configuration.
+// ScopeBlock is the scope gate's configuration.
 type ScopeBlock struct {
 	RequireTaskManifest bool     `koanf:"require_task_manifest"`
 	AllowAlways         []string `koanf:"allow_always"`
-}
-
-// Plugin is one Gate 8 exec-plugin definition. Exec is the command to run;
-// alternatively Preset names a built-in diff-local detector (census registry)
-// whose command is filled in for you — so `preset: ruff-unused` gives unused-
-// import detection at commit time without hand-writing the command.
-type Plugin struct {
-	Name   string   `koanf:"name"`
-	Exec   string   `koanf:"exec"`
-	Preset string   `koanf:"preset"`
-	When   []string `koanf:"when"`
 }
 
 // ApplyGatesTo values.
@@ -199,14 +124,6 @@ func Defaults() Config {
 			AIPatterns: AIPatterns{
 				Enabled: true,
 			},
-			Duplicate: DuplicateBlock{
-				Enabled:   false, // opt-in: builds the repo index
-				Threshold: 0.85,
-			},
-			ConventionDrift: DriftBlock{
-				Enabled:  true,
-				Severity: "info",
-			},
 		},
 	}
 }
@@ -218,38 +135,23 @@ const Filename = ".dwarpal.yml"
 // the overrides slice as a single leaf value, so its inner keys are validated
 // by struct decoding rather than listed here.
 var allowedKeys = map[string]bool{
-	"version":                            true,
-	"mode":                               true,
-	"stop_on_first_block":                true,
-	"architecture_rules":                 true,
-	"rule_overrides":                     true,
-	"provenance.branch_prefixes":         true,
-	"provenance.trailers":                true,
-	"provenance.apply_gates_to":          true,
-	"provenance.heuristics":              true,
-	"gates.diff_budget.max_lines":        true,
-	"gates.diff_budget.max_files":        true,
-	"gates.diff_budget.max_new_files":    true,
-	"gates.diff_budget.overrides":        true,
-	"gates.branch_policy.protected":      true,
-	"gates.ai_patterns.enabled":          true,
-	"gates.ai_patterns.disable_rules":    true,
-	"gates.scope.require_task_manifest":  true,
-	"gates.scope.allow_always":           true,
-	"gates.diff_coverage.min_percent":    true,
-	"gates.diff_coverage.artifact":       true,
-	"gates.intent_check.enabled":         true,
-	"gates.intent_check.provider":        true,
-	"gates.intent_check.endpoint":        true,
-	"gates.intent_check.model":           true,
-	"gates.intent_check.timeout_seconds": true,
-	"gates.duplicate.enabled":            true,
-	"gates.duplicate.threshold":          true,
-	"gates.convention_drift.enabled":     true,
-	"gates.convention_drift.severity":    true,
-	"gates.plugins":                      true,
-	"census.detectors":                   true,
-	"census.baseline":                    true,
+	"version":                           true,
+	"mode":                              true,
+	"stop_on_first_block":               true,
+	"rule_overrides":                    true,
+	"provenance.branch_prefixes":        true,
+	"provenance.trailers":               true,
+	"provenance.apply_gates_to":         true,
+	"provenance.heuristics":             true,
+	"gates.diff_budget.max_lines":       true,
+	"gates.diff_budget.max_files":       true,
+	"gates.diff_budget.max_new_files":   true,
+	"gates.diff_budget.overrides":       true,
+	"gates.branch_policy.protected":     true,
+	"gates.ai_patterns.enabled":         true,
+	"gates.ai_patterns.disable_rules":   true,
+	"gates.scope.require_task_manifest": true,
+	"gates.scope.allow_always":          true,
 }
 
 // Load reads root/.dwarpal.yml, overlaying it on the defaults. A missing file
@@ -332,28 +234,6 @@ func (c Config) validate() error {
 		case "error", "warn", "info":
 		default:
 			return fmt.Errorf("rule_overrides[%q]: invalid severity %q (want error|warn|info)", key, sev)
-		}
-	}
-	for _, name := range c.Census.Detectors {
-		if _, ok := census.Lookup(name); !ok {
-			return fmt.Errorf("census.detectors: unknown detector %q (see `dwarpal census --list`)", name)
-		}
-	}
-	for i, p := range c.Gates.Plugins {
-		if p.Preset == "" {
-			continue
-		}
-		if p.Exec != "" {
-			return fmt.Errorf("gates.plugins[%d]: set either exec or preset, not both", i)
-		}
-		d, ok := census.Lookup(p.Preset)
-		if !ok {
-			return fmt.Errorf("gates.plugins[%d]: unknown preset %q", i, p.Preset)
-		}
-		// A whole-repo detector cannot meet the pre-commit budget — refuse it
-		// as a gate so a misconfiguration can't silently blow the p95.
-		if d.Scope != census.DiffLocal {
-			return fmt.Errorf("gates.plugins[%d]: preset %q is whole-repo; run it via `dwarpal census`, not a commit gate", i, p.Preset)
 		}
 	}
 	return nil

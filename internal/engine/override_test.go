@@ -17,13 +17,13 @@ func TestRunWith_SeverityOverrideDemotesAndUnblocks(t *testing.T) {
 	gate := stubGate{"g1", block("g1"), &ran} // emits gate=g1 rule=r severity=error
 
 	// Without an override, it blocks.
-	res := RunWith(context.Background(), []Gate{gate}, &gitio.Diff{}, NoIndex{}, Options{})
+	res := RunWith(context.Background(), []Gate{gate}, &gitio.Diff{}, Options{})
 	if !res.Blocking() {
 		t.Fatal("error finding should block without an override")
 	}
 
 	// Demote g1/r to warn — it must no longer block.
-	res = RunWith(context.Background(), []Gate{gate}, &gitio.Diff{}, NoIndex{},
+	res = RunWith(context.Background(), []Gate{gate}, &gitio.Diff{},
 		Options{SeverityOverrides: map[string]finding.Severity{"g1/r": finding.SeverityWarn}})
 	if res.Blocking() {
 		t.Fatal("override to warn must stop the finding from blocking")
@@ -41,7 +41,7 @@ func TestRunWith_OverrideHonoredUnderStopOnFirstBlock(t *testing.T) {
 	res := RunWith(context.Background(), []Gate{
 		stubGate{"g1", block("g1"), &first},
 		stubGate{"g2", block("g2"), &second},
-	}, &gitio.Diff{}, NoIndex{}, Options{
+	}, &gitio.Diff{}, Options{
 		StopOnFirstBlock:  true,
 		SeverityOverrides: map[string]finding.Severity{"g1/r": finding.SeverityWarn},
 	})

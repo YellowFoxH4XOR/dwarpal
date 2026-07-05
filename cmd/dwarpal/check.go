@@ -83,7 +83,7 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string, perCommit bool)
 		return nil
 	}
 
-	gates, prov, idx := buildGatesForDiff(root, cfg, collectOverrides(root, rangeArg), diff)
+	gates, prov := buildGates(root, cfg, collectOverrides(root, rangeArg, cfg.Mode))
 
 	var res engine.Result
 	if perCommit && rangeArg != "" {
@@ -92,12 +92,12 @@ func runCheck(jsonOut, sarifOut bool, rangeArg, diffFile string, perCommit bool)
 		// commit's budget. Evaluate each commit's own diff; merge commits are
 		// skipped (their content arrived via their parents, same rule as the
 		// pre-push marker check).
-		res, err = runPerCommit(ex, root, gates, idx, cfg, rangeArg)
+		res, err = runPerCommit(ex, root, gates, cfg, rangeArg)
 		if err != nil {
 			return &exitError{code: 2, msg: err.Error()}
 		}
 	} else {
-		res = engine.RunWith(context.Background(), gates, diff, idx,
+		res = engine.RunWith(context.Background(), gates, diff,
 			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock, SeverityOverrides: severityOverrides(cfg)})
 	}
 
@@ -154,7 +154,7 @@ func resultString(mode config.Mode, res engine.Result, diff *gitio.Diff) string 
 // runPerCommit evaluates every non-merge commit in the range independently
 // and merges the results. Findings keep their file:line; a commit reference
 // is appended to the message so multi-commit output stays attributable.
-func runPerCommit(ex *gitio.Extractor, root string, gates []engine.Gate, idx engine.RepoIndex, cfg config.Config, rangeArg string) (engine.Result, error) {
+func runPerCommit(ex *gitio.Extractor, root string, gates []engine.Gate, cfg config.Config, rangeArg string) (engine.Result, error) {
 	shas, err := revList(root, rangeArg)
 	if err != nil {
 		return engine.Result{}, err
@@ -165,7 +165,7 @@ func runPerCommit(ex *gitio.Extractor, root string, gates []engine.Gate, idx eng
 		if err != nil {
 			return engine.Result{}, err
 		}
-		res := engine.RunWith(context.Background(), gates, diff, idx,
+		res := engine.RunWith(context.Background(), gates, diff,
 			engine.Options{StopOnFirstBlock: cfg.StopOnFirstBlock, SeverityOverrides: severityOverrides(cfg)})
 		for i := range res.Findings {
 			res.Findings[i].Message += " (commit " + sha[:7] + ")"
