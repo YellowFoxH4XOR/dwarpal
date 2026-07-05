@@ -22,7 +22,9 @@ func TestLoad_MissingFileUsesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Gates.DiffBudget.MaxLines != 500 || cfg.Mode != ModeEnforce {
+	// 300 is the agent-calibrated default (see Defaults) — a partial/absent
+	// config must still land on it, not a stale hardcoded number.
+	if cfg.Gates.DiffBudget.MaxLines != 300 || cfg.Mode != ModeEnforce {
 		t.Fatalf("defaults not applied: %+v", cfg)
 	}
 }

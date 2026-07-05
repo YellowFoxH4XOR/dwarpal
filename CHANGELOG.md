@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — evidence-based enhancements
+
+Two refinements to the existing gates, grounded in recent empirical research —
+no new gates, no new commands.
+
+- **Structured fix hints.** Every finding now carries a concrete before→after
+  `fix` example alongside its `retry_hint`, and both are surfaced per-finding in
+  the `--explain-for-agent` JSON (and shown in the terminal). FeedbackEval
+  ([arXiv:2504.06939](https://arxiv.org/abs/2504.06939)) measured that this
+  "mixed feedback" shape lifts an LLM's fix rate ~10.5pp over a bare error
+  message, with the worked example the most load-bearing component — and in-loop
+  self-correction is exactly Dwarpal's wedge. Additive and backward-compatible:
+  the top-level `retry_hints` digest is unchanged.
+- **Agent-calibrated diff budget.** The default `diff_budget.max_lines` is now
+  **300** (was 500). A large-scale study of real repositories
+  ([arXiv:2603.27130](https://arxiv.org/html/2603.27130v2)) found AI-authored
+  commits churn ~25 lines on median vs ~152 for humans; 300 keeps generous
+  headroom over the agent norm while flagging diffs that have ballooned past
+  reviewable — the signal a human-oriented 500-line budget missed. Existing
+  `.dwarpal.yml` files that set the value are unaffected.
+
 ## Unreleased — strip to the wedge
 
 Dwarpal is now focused on one thing: gating **agent-authored** diffs with a small

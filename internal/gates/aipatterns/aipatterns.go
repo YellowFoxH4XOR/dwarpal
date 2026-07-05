@@ -63,6 +63,7 @@ func (g *Gate) Run(_ context.Context, d *gitio.Diff) ([]finding.Finding, error) 
 					Message:    rule.Message,
 					Suggestion: rule.Suggestion,
 					RetryHint:  rule.RetryHint,
+					Fix:        rule.Fix,
 				})
 			}
 		}

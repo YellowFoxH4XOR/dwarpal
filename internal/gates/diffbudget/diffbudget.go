@@ -135,6 +135,7 @@ func budgetFinding(ruleID, noun string, actual, allowed int, label string) findi
 		Message:    fmt.Sprintf("%d %s exceeds the %d limit%s", actual, noun, allowed, scope),
 		Suggestion: fmt.Sprintf("split this change so each commit stays within %d %s", allowed, noun),
 		RetryHint:  fmt.Sprintf("Split this change: %d %s exceeds the %d-%s budget%s. Commit smaller, self-contained changes.", actual, noun, allowed, splitNoun(noun), scope),
+		Fix:        "stage and commit one concern at a time, e.g. `git add <refactor files> && git commit`, then the feature change in a separate commit",
 	}
 }
 

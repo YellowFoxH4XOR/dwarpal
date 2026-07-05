@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/YellowFoxH4XOR/dwarpal/internal/engine"
 	"github.com/YellowFoxH4XOR/dwarpal/internal/finding"
@@ -138,6 +139,11 @@ func TTY(w io.Writer, in Input) error {
 			fmt.Fprintf(w, "  [%s] %s%s\n", f.Severity, f.Message, loc)
 			if f.Suggestion != "" {
 				fmt.Fprintf(w, "      ↳ %s\n", f.Suggestion)
+			}
+			if f.Fix != "" {
+				// Align any continuation lines (multi-line before→after examples)
+				// under the first line's content.
+				fmt.Fprintf(w, "      e.g. %s\n", strings.ReplaceAll(f.Fix, "\n", "\n           "))
 			}
 		}
 	}

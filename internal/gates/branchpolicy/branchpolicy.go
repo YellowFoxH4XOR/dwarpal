@@ -50,6 +50,7 @@ func (g *Gate) Run(_ context.Context, _ *gitio.Diff) ([]finding.Finding, error) 
 				Message:    fmt.Sprintf("agent commit to protected branch %q", g.branch),
 				Suggestion: "move this work to an agent/* branch and open a PR",
 				RetryHint:  fmt.Sprintf("Do not commit agent work directly to %q. Create an agent/<task> branch and commit there.", g.branch),
+				Fix:        "git switch -c agent/<task>   # then commit here and open a PR",
 			}}, nil
 		}
 	}

@@ -4,7 +4,7 @@
 
 ## What it catches
 
-Commits whose total changed lines (added + removed) exceed `gates.diff_budget.max_lines` (default 500).
+Commits whose total changed lines (added + removed) exceed `gates.diff_budget.max_lines` (default 300).
 
 ## Why this rule exists
 
@@ -17,7 +17,7 @@ Split the change into smaller, self-contained commits. If a path legitimately pr
 ## Configuration
 
 ```yaml
-gates.diff_budget.max_lines: 500
+gates.diff_budget.max_lines: 300
 gates.diff_budget.overrides:
   - paths: ["generated/**"]
     max_lines: 10000

@@ -21,10 +21,12 @@ const (
 // mode. Centralizing the rule here keeps the engine and report layer in sync.
 func (s Severity) Blocking() bool { return s == SeverityError }
 
-// Finding is one violation reported by a gate. The field set matches the
-// output contract in PRD §5.2: {gate, rule_id, severity, file, line, message,
-// suggestion, docs_url}. RetryHint is the imperative, agent-consumable
-// instruction that turns a block into part of the agent's retry loop (P4).
+// Finding is one violation reported by a gate. Its agent-facing fields form the
+// "mixed feedback" shape that measurably lifts an LLM's fix rate over a bare
+// error message (FeedbackEval, arXiv:2504.06939 — mixed vs minimal feedback is
+// +10.5pp, and dropping the worked example degrades it most): Message says WHAT
+// is wrong, File/Line say WHERE, Suggestion says WHY/how, RetryHint is the
+// imperative fix instruction, and Fix is a concrete before→after example.
 type Finding struct {
 	Gate       string   `json:"gate"`
 	RuleID     string   `json:"rule_id"`
@@ -34,5 +36,8 @@ type Finding struct {
 	Message    string   `json:"message"`
 	Suggestion string   `json:"suggestion,omitempty"`
 	DocsURL    string   `json:"docs_url,omitempty"`
-	RetryHint  string   `json:"-"`
+	// RetryHint is surfaced both per-finding and in the top-level retry_hints
+	// digest; Fix is the worked example FeedbackEval found most load-bearing.
+	RetryHint string `json:"retry_hint,omitempty"`
+	Fix       string `json:"fix,omitempty"`
 }

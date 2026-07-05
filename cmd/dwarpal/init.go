@@ -24,7 +24,7 @@ provenance:
 
 gates:
   diff_budget:
-    max_lines: 500
+    max_lines: 300
     max_files: 20
     max_new_files: 10
     overrides:
